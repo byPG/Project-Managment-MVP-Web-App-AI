@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useReducer, useState } from "react";
+import type { BoardAction } from "../../lib/types";
 import { Board } from "@/components/Board";
 import { boardReducer } from "@/lib/boardReducer";
 import { dummyBoardState } from "@/lib/dummyData";
+import {
+  addCard,
+  deleteCard as deleteCardApi,
+  loadBoard,
+  moveCard as moveCardApi,
+  normalizeBoardResponse,
+  renameColumn,
+} from "../lib/api";
 import styles from "./page.module.css";
 
 type HealthStatus = "loading" | "ok" | "error";
@@ -22,6 +31,8 @@ export default function Home() {
   const [signInError, setSignInError] = useState("");
   const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState("");
+  const [boardError, setBoardError] = useState("");
+  const [isBoardLoading, setIsBoardLoading] = useState(false);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -40,7 +51,7 @@ export default function Home() {
         } else {
           throw new Error("Unexpected response");
         }
-      } catch (error) {
+      } catch {
         setHealthStatus("error");
         setHealthMessage("Unable to connect to backend");
       }
@@ -48,6 +59,79 @@ export default function Home() {
 
     checkHealth();
   }, [apiBase]);
+
+  useEffect(() => {
+    async function loadBoardData() {
+      setBoardError("");
+      setIsBoardLoading(true);
+
+      try {
+        const board = await loadBoard(apiBase);
+        dispatch({ type: "setBoard", board: normalizeBoardResponse(board) });
+      } catch (error) {
+        setBoardError(error instanceof Error ? error.message : "Failed to load board.");
+      } finally {
+        setIsBoardLoading(false);
+      }
+    }
+
+    if (isSignedIn) {
+      loadBoardData();
+    }
+  }, [apiBase, isSignedIn]);
+
+  async function refreshBoard() {
+    const board = await loadBoard(apiBase);
+    dispatch({ type: "setBoard", board: normalizeBoardResponse(board) });
+  }
+
+  async function handleBoardAction(action: BoardAction) {
+    setBoardError("");
+    setIsBoardLoading(true);
+
+    try {
+      switch (action.type) {
+        case "setBoard":
+          dispatch(action);
+          return;
+
+        case "renameColumn":
+          await renameColumn(apiBase, action.columnId, action.title);
+          await refreshBoard();
+          return;
+
+        case "addCard":
+          await addCard(apiBase, action.columnId, action.card.title, action.card.details);
+          await refreshBoard();
+          return;
+
+        case "deleteCard":
+          await deleteCardApi(apiBase, action.cardId);
+          await refreshBoard();
+          return;
+
+        case "moveCard":
+          if (action.payload.fromColumnId === action.payload.toColumnId) {
+            dispatch(action);
+            return;
+          }
+
+          await moveCardApi(apiBase, action.payload.cardId, action.payload.toColumnId);
+          await refreshBoard();
+          return;
+
+        default:
+          return;
+      }
+    } catch (error) {
+        setBoardError(error instanceof Error ? error.message : "Unable to update board.");
+      } finally {
+        setIsBoardLoading(false);
+      }
+    }
+  function dispatchAction(action: BoardAction) {
+    void handleBoardAction(action);
+  }
 
   async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,6 +157,7 @@ export default function Home() {
       }
 
       setIsSignedIn(true);
+      setSignInStatus("idle");
     } catch (error) {
       setSignInStatus("idle");
       setSignInError(error instanceof Error ? error.message : "Unable to sign in.");
@@ -171,7 +256,18 @@ export default function Home() {
         <p className={styles.subtitle}>Drag cards between columns to track progress</p>
       </header>
 
-      <Board state={state} dispatch={dispatch} />
+      {boardError ? (
+        <p className={styles.statusMessage} role="alert">
+          {boardError}
+        </p>
+      ) : null}
+      {isBoardLoading ? (
+        <div className={styles.boardStatus} role="status" aria-live="polite">
+          Loading board data…
+        </div>
+      ) : (
+        <Board state={state} dispatch={dispatchAction} />
+      )}
     </main>
   );
 }

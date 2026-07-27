@@ -47,6 +47,10 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       };
     }
 
+    case "setBoard": {
+      return action.board;
+    }
+
     case "deleteCard": {
       const { [action.cardId]: removed, ...remainingCards } = state.cards;
       if (!removed) {

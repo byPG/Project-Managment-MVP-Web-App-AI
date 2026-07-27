@@ -50,6 +50,11 @@ button {
   border: 0;
 }
 
+:focus-visible {
+  outline: 3px solid rgba(79, 140, 255, 0.65);
+  outline-offset: 3px;
+}
+
 img {
   max-width: 100%;
   display: block;

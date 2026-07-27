@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_DIR = BASE_DIR / "db"
@@ -13,15 +13,12 @@ DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATABASE_DIR / 'app.d
 class Board(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
-    columns: List["Column"] = Relationship(back_populates="board")
 
 class Column(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     board_id: int = Field(foreign_key="board.id")
     name: str
     position: int
-    board: Optional[Board] = Relationship(back_populates="columns")
-    cards: List["Card"] = Relationship(back_populates="column")
 
 class Card(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -29,7 +26,6 @@ class Card(SQLModel, table=True):
     title: str
     details: str
     position: int
-    column: Optional[Column] = Relationship(back_populates="cards")
 
 COLUMN_NAMES = ["Backlog", "To Do", "In Progress", "Review", "Done"]
 

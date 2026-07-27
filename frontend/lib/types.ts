@@ -16,6 +16,7 @@ export type BoardState = {
 };
 
 export type AddCardPayload = {
+  id?: string;
   title: string;
   details: string;
 };
@@ -28,6 +29,7 @@ export type MoveCardPayload = {
 };
 
 export type BoardAction =
+  | { type: "setBoard"; board: BoardState }
   | { type: "renameColumn"; columnId: string; title: string }
   | { type: "addCard"; columnId: string; card: AddCardPayload }
   | { type: "deleteCard"; cardId: string }

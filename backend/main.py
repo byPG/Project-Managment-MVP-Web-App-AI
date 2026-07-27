@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Body
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlmodel import Session, select
 
 from db import Board, Card, Column, create_db_and_tables, get_engine
@@ -37,30 +37,27 @@ class MoveCardRequest(BaseModel):
     destination_column_id: int
 
 class CardRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     details: str
     position: int
 
-    class Config:
-        orm_mode = True
-
 class ColumnRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     position: int
     cards: list[CardRead]
 
-    class Config:
-        orm_mode = True
-
 class BoardRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     columns: list[ColumnRead]
-
-    class Config:
-        orm_mode = True
 
 engine = create_db_and_tables()
 
@@ -210,16 +207,6 @@ def move_card(card_id: int, payload: MoveCardRequest = Body(...)):
 
         return CardRead.from_orm(card)
 
-
-@app.post("/api/auth/sign-in", response_model=SignInResponse)
-def sign_in(payload: SignInRequest = Body(...)):
-    demo_email = "demo@kanban.app"
-    demo_password = "password123"
-
-    if payload.email != demo_email or payload.password != demo_password:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    return {"status": "ok", "email": payload.email}
 
 @app.post("/api/auth/sign-in", response_model=SignInResponse)
 def sign_in(payload: SignInRequest = Body(...)):
