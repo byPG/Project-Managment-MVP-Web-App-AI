@@ -19,13 +19,21 @@ html {
   background: var(--bg-main);
   color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  min-height: 100%;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100%;
   background: var(--bg-main);
   color: var(--text-primary);
+}
+
+#root,
+#__next,
+html,
+body {
+  min-height: 100%;
 }
 
 a {
