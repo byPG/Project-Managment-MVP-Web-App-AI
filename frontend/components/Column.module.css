@@ -113,6 +113,8 @@
   border-radius: 0.75rem;
   background: rgba(15, 17, 21, 0.5);
   padding: 0.5rem;
+  display: grid;
+  gap: 0.75rem;
   overflow-y: auto;
 }
 
@@ -135,23 +137,26 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 1px dashed rgba(139, 92, 246, 0.4);
+  width: 100%;
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--secondary-purple);
-  background: transparent;
+  padding: 0.8rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--surface-elevated);
   cursor: pointer;
   transition:
     border-color 200ms ease,
     background-color 200ms ease,
-    color 200ms ease;
+    color 200ms ease,
+    transform 200ms ease;
 }
 
 .addButton:hover,
 .addButton:focus-visible {
   border-color: var(--primary-blue);
-  background: rgba(79, 140, 255, 0.05);
+  background: rgba(79, 140, 255, 0.12);
   color: var(--primary-blue);
+  transform: translateY(-1px);
 }

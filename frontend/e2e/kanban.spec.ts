@@ -3,6 +3,10 @@ import { test, expect } from "@playwright/test";
 test.describe("Kanban Board MVP", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
+    await page.getByLabelText(/email/i).fill("demo@kanban.app");
+    await page.getByLabelText(/password/i).fill("password123");
+    await page.getByRole("button", { name: /sign in/i }).click();
+    await expect(page.getByRole("heading", { name: /kanban board/i })).toBeVisible();
   });
 
   test("should render five columns with initial dummy cards", async ({ page }) => {
