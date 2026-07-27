@@ -1,0 +1,157 @@
+.column {
+  display: flex;
+  width: 20rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1rem;
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    background-color 200ms ease;
+}
+
+.columnActive {
+  border-color: var(--accent-teal);
+  box-shadow:
+    0 0 0 1px rgba(45, 212, 191, 0.15),
+    0 12px 30px rgba(45, 212, 191, 0.12);
+  background: rgba(23, 26, 33, 0.95);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.titleInput {
+  width: 100%;
+  border: 1px solid var(--primary-blue);
+  border-radius: 0.5rem;
+  background: var(--bg-main);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.titleInput:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.2);
+}
+
+.titleButton {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: color 200ms ease;
+}
+
+.titleButton:hover,
+.titleButton:focus-visible {
+  color: var(--accent-teal);
+}
+
+.titleText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleIcon {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.titleButton:hover .titleIcon,
+.titleButton:focus-visible .titleIcon {
+  opacity: 1;
+}
+
+.countBadge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-main);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--secondary-purple);
+}
+
+.cardList {
+  margin-top: 0.75rem;
+  flex: 1;
+  min-height: 150px;
+  border-radius: 0.75rem;
+  background: rgba(15, 17, 21, 0.5);
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 7rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  color: rgba(156, 163, 175, 0.6);
+  user-select: none;
+  pointer-events: none;
+}
+
+.addButton {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px dashed rgba(139, 92, 246, 0.4);
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--secondary-purple);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+.addButton:hover,
+.addButton:focus-visible {
+  border-color: var(--primary-blue);
+  background: rgba(79, 140, 255, 0.05);
+  color: var(--primary-blue);
+}

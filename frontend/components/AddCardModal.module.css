@@ -1,0 +1,159 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 17, 21, 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.dialog {
+  width: min(100%, 32rem);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface-elevated);
+  padding: 1.5rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.titleAccent {
+  color: var(--primary-blue);
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.25rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.form {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.label {
+  color: var(--secondary-purple);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg-main);
+  padding: 0.7rem 0.85rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgba(156, 163, 175, 0.6);
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: var(--primary-blue);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.2);
+}
+
+.textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger-coral);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.cancelButton,
+.submitButton {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.cancelButton {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.cancelButton:hover,
+.cancelButton:focus-visible {
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.submitButton {
+  border-color: transparent;
+  background: var(--primary-blue);
+  color: var(--text-primary);
+  box-shadow: 0 12px 24px rgba(79, 140, 255, 0.2);
+}
+
+.submitButton:hover,
+.submitButton:focus-visible {
+  background: rgba(79, 140, 255, 0.8);
+}

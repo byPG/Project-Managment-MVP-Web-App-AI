@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import styles from "./AddCardModal.module.css";
 import type { BoardAction } from "@/lib/types";
 
 type AddCardModalProps = {
@@ -55,24 +56,17 @@ export function AddCardModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-bg-main/80 backdrop-blur-sm p-4"
-      data-testid="add-card-modal"
-      onClick={handleClose}
-    >
-      <div
-        className="w-full max-w-md rounded-xl border border-border bg-surface-elevated p-6 shadow-2xl transition-all"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <h2 className="text-lg font-semibold text-text-primary">
-            Add Card to <span className="text-primary-blue">{columnTitle}</span>
+    <div className={styles.overlay} data-testid="add-card-modal" onClick={handleClose}>
+      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>
+            Add Card to <span className={styles.titleAccent}>{columnTitle}</span>
           </h2>
           <button
             type="button"
             onClick={handleClose}
             aria-label="Close modal"
-            className="rounded-lg p-1 text-text-secondary hover:bg-bg-main hover:text-text-primary transition-colors"
+            className={styles.closeButton}
           >
             <svg
               className="h-5 w-5"
@@ -90,12 +84,9 @@ export function AddCardModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div>
-            <label
-              htmlFor="card-title"
-              className="block text-xs font-semibold uppercase tracking-wider text-secondary-purple"
-            >
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.field}>
+            <label htmlFor="card-title" className={styles.label}>
               Card Title
             </label>
             <input
@@ -109,18 +100,15 @@ export function AddCardModal({
               placeholder="Enter card title..."
               data-testid="card-title-input"
               autoFocus
-              className="mt-1.5 w-full rounded-lg border border-border bg-bg-main px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-primary-blue focus:outline-none focus:ring-1 focus:ring-primary-blue"
+              className={styles.input}
             />
             {error && (
-              <p className="mt-1 text-xs text-danger-coral font-medium">{error}</p>
+              <p className={styles.error}>{error}</p>
             )}
           </div>
 
-          <div>
-            <label
-              htmlFor="card-details"
-              className="block text-xs font-semibold uppercase tracking-wider text-secondary-purple"
-            >
+          <div className={styles.field}>
+            <label htmlFor="card-details" className={styles.label}>
               Details
             </label>
             <textarea
@@ -130,23 +118,23 @@ export function AddCardModal({
               onChange={(e) => setDetails(e.target.value)}
               placeholder="Enter card details..."
               data-testid="card-details-input"
-              className="mt-1.5 w-full rounded-lg border border-border bg-bg-main px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-primary-blue focus:outline-none focus:ring-1 focus:ring-primary-blue resize-none"
+              className={styles.textarea}
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className={styles.actions}>
             <button
               type="button"
               onClick={handleClose}
               data-testid="cancel-card-button"
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-main hover:text-text-primary transition-colors"
+              className={styles.cancelButton}
             >
               Cancel
             </button>
             <button
               type="submit"
               data-testid="submit-card-button"
-              className="rounded-lg bg-primary-blue px-4 py-2 text-sm font-semibold text-text-primary hover:bg-primary-blue/80 focus:outline-none focus:ring-2 focus:ring-accent-teal transition-all shadow-md shadow-primary-blue/20"
+              className={styles.submitButton}
             >
               Add Card
             </button>

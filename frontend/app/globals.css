@@ -1,37 +1,50 @@
-@import "tailwindcss";
-
 :root {
-  --bg-main: #0F1115;
-  --surface: #171A21;
-  --surface-elevated: #20242D;
-  --primary-blue: #4F8CFF;
-  --accent-teal: #2DD4BF;
-  --secondary-purple: #8B5CF6;
-  --danger-coral: #F87171;
-  --text-primary: #F3F4F6;
-  --text-secondary: #9CA3AF;
-  --border: #2B303B;
+  --bg-main: #0f1115;
+  --surface: #171a21;
+  --surface-elevated: #20242d;
+  --primary-blue: #4f8cff;
+  --accent-teal: #2dd4bf;
+  --secondary-purple: #8b5cf6;
+  --danger-coral: #f87171;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --border: #2b303b;
 }
 
-@theme inline {
-  --color-bg-main: var(--bg-main);
-  --color-surface: var(--surface);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-primary-blue: var(--primary-blue);
-  --color-accent-teal: var(--accent-teal);
-  --color-secondary-purple: var(--secondary-purple);
-  --color-danger-coral: var(--danger-coral);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-border: var(--border);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-body {
+html {
   background: var(--bg-main);
   color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+img {
+  max-width: 100%;
+  display: block;
 }
 
 * {

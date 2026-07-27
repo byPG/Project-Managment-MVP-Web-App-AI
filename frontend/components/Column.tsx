@@ -8,6 +8,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Card } from "@/components/Card";
 import { AddCardModal } from "@/components/AddCardModal";
+import styles from "./Column.module.css";
 import type { BoardAction, Column as ColumnType, Card as CardType } from "@/lib/types";
 
 type ColumnProps = {
@@ -53,13 +54,11 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
       <div
         ref={setNodeRef}
         data-testid={`column-${column.id}`}
-        className={`flex w-80 shrink-0 flex-col rounded-xl border bg-surface p-4 transition-colors duration-200 ${
-          isOver ? "border-accent-teal shadow-lg shadow-accent-teal/10 bg-surface/90" : "border-border"
-        }`}
+        className={`${styles.column} ${isOver ? styles.columnActive : ""}`}
       >
         {/* Column Header */}
-        <div className="flex items-center justify-between gap-2 pb-3 border-b border-border">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className={styles.header}>
+          <div className={styles.headerContent}>
             {isEditingTitle ? (
               <input
                 type="text"
@@ -69,7 +68,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
                 onKeyDown={handleKeyDown}
                 data-testid={`column-title-input-${column.id}`}
                 autoFocus
-                className="w-full rounded border border-primary-blue bg-bg-main px-2 py-1 text-sm font-semibold text-text-primary focus:outline-none"
+                className={styles.titleInput}
               />
             ) : (
               <button
@@ -79,11 +78,11 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
                   setIsEditingTitle(true);
                 }}
                 data-testid={`column-title-${column.id}`}
-                className="group/title flex items-center gap-1.5 text-left text-sm font-bold text-text-primary hover:text-accent-teal transition-colors truncate"
+                className={styles.titleButton}
               >
-                <span className="truncate">{column.title}</span>
+                <span className={styles.titleText}>{column.title}</span>
                 <svg
-                  className="h-3.5 w-3.5 shrink-0 text-text-secondary opacity-0 group-hover/title:opacity-100 transition-opacity"
+                  className={styles.titleIcon}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -99,19 +98,13 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
             )}
           </div>
 
-          <span
-            data-testid={`column-count-${column.id}`}
-            className="rounded-full bg-bg-main px-2.5 py-0.5 text-xs font-semibold text-secondary-purple border border-border"
-          >
+          <span data-testid={`column-count-${column.id}`} className={styles.countBadge}>
             {cards.length}
           </span>
         </div>
 
         {/* Droppable Card List */}
-        <div
-          data-testid={`column-droppable-${column.id}`}
-          className="mt-3 flex-1 min-h-[150px] space-y-3 rounded-lg bg-bg-main/50 p-2 overflow-y-auto"
-        >
+        <div data-testid={`column-droppable-${column.id}`} className={styles.cardList}>
           <SortableContext
             items={column.cardIds}
             strategy={verticalListSortingStrategy}
@@ -121,7 +114,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
             ))}
           </SortableContext>
           {cards.length === 0 && (
-            <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-border text-xs text-text-secondary/60 pointer-events-none select-none">
+            <div className={styles.emptyState}>
               Drop tasks here
             </div>
           )}
@@ -132,7 +125,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
           type="button"
           onClick={() => setIsAddModalOpen(true)}
           data-testid={`add-card-button-${column.id}`}
-          className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-dashed border-secondary-purple/40 py-2 text-xs font-semibold text-secondary-purple hover:border-primary-blue hover:bg-primary-blue/5 hover:text-primary-blue transition-all"
+          className={styles.addButton}
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

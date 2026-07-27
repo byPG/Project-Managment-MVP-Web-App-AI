@@ -1,0 +1,13 @@
+.boardShell {
+  flex: 1;
+  overflow-x: auto;
+  padding: 1.5rem;
+}
+
+.boardInner {
+  margin: 0 auto;
+  display: flex;
+  min-height: calc(100vh - 8rem);
+  max-width: 1800px;
+  gap: 1rem;
+}

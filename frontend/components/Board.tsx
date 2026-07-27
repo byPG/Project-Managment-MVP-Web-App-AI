@@ -18,6 +18,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Column } from "@/components/Column";
 import { Card } from "@/components/Card";
+import styles from "./Board.module.css";
 import type { BoardAction, BoardState, Card as CardType } from "@/lib/types";
 
 type BoardProps = {
@@ -116,11 +117,8 @@ export function Board({ state, dispatch }: BoardProps) {
   }
 
   const boardContent = (
-    <div className="flex-1 overflow-x-auto px-6 py-6">
-      <div
-        className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-[1800px] gap-4"
-        data-testid="kanban-board"
-      >
+    <div className={styles.boardShell}>
+      <div className={styles.boardInner} data-testid="kanban-board">
         {state.columns.map((column) => (
           <Column
             key={column.id}
@@ -151,7 +149,7 @@ export function Board({ state, dispatch }: BoardProps) {
 
       <DragOverlay dropAnimation={null}>
         {activeCard ? (
-          <div className="rotate-2 opacity-95">
+          <div style={{ transform: "rotate(2deg)", opacity: 0.95 }}>
             <Card card={activeCard} overlay />
           </div>
         ) : null}
