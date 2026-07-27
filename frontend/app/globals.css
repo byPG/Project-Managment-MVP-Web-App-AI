@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --bg-main: #0F1115;
+  --surface: #171A21;
+  --surface-elevated: #20242D;
+  --primary-blue: #4F8CFF;
+  --accent-teal: #2DD4BF;
+  --secondary-purple: #8B5CF6;
+  --danger-coral: #F87171;
+  --text-primary: #F3F4F6;
+  --text-secondary: #9CA3AF;
+  --border: #2B303B;
+}
+
+@theme inline {
+  --color-bg-main: var(--bg-main);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-primary-blue: var(--primary-blue);
+  --color-accent-teal: var(--accent-teal);
+  --color-secondary-purple: var(--secondary-purple);
+  --color-danger-coral: var(--danger-coral);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+* {
+  scrollbar-color: var(--secondary-purple) var(--surface);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--secondary-purple);
+  border-radius: 4px;
+}
