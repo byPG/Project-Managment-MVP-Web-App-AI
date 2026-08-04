@@ -40,6 +40,7 @@ class CardRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    column_id: int
     title: str
     details: str
     position: int

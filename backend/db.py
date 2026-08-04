@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -43,7 +44,16 @@ INITIAL_CARDS = [
 
 def get_engine(database_url: str = DATABASE_URL):
     DATABASE_DIR.mkdir(parents=True, exist_ok=True)
-    return create_engine(database_url, echo=False)
+    connect_args = {"check_same_thread": False}
+
+    if ":memory:" in database_url:
+        # FastAPI runs sync endpoints in a threadpool, and SQLite's default
+        # in-memory connection is private to the thread that opened it, so
+        # each request would otherwise see an empty, tableless database.
+        # StaticPool keeps a single shared connection alive for the engine.
+        return create_engine(database_url, echo=False, connect_args=connect_args, poolclass=StaticPool)
+
+    return create_engine(database_url, echo=False, connect_args=connect_args)
 
 
 def seed_initial_data(session: Session) -> None:

@@ -3,8 +3,8 @@ import { test, expect } from "@playwright/test";
 test.describe("Kanban Board MVP", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    await page.getByLabelText(/email/i).fill("demo@kanban.app");
-    await page.getByLabelText(/password/i).fill("password123");
+    await page.getByLabel(/email/i).fill("demo@kanban.app");
+    await page.getByLabel(/password/i).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
     await expect(page.getByRole("heading", { name: /kanban board/i })).toBeVisible();
   });
@@ -13,35 +13,36 @@ test.describe("Kanban Board MVP", () => {
     const board = page.getByTestId("kanban-board");
     await expect(board).toBeVisible();
 
-    const columns = page.locator('[data-testid^="column-col-"]');
-    await expect(columns).toHaveCount(5);
+    for (const columnId of [1, 2, 3, 4, 5]) {
+      await expect(page.getByTestId(`column-${columnId}`)).toBeVisible();
+    }
 
-    await expect(page.getByTestId("column-title-col-1")).toContainText("Backlog");
-    await expect(page.getByTestId("column-title-col-2")).toContainText("To Do");
-    await expect(page.getByTestId("column-title-col-3")).toContainText("In Progress");
-    await expect(page.getByTestId("column-title-col-4")).toContainText("Review");
-    await expect(page.getByTestId("column-title-col-5")).toContainText("Done");
+    await expect(page.getByTestId("column-title-1")).toContainText("Backlog");
+    await expect(page.getByTestId("column-title-2")).toContainText("To Do");
+    await expect(page.getByTestId("column-title-3")).toContainText("In Progress");
+    await expect(page.getByTestId("column-title-4")).toContainText("Review");
+    await expect(page.getByTestId("column-title-5")).toContainText("Done");
 
     // Dummy card initial check
-    await expect(page.getByTestId("card-card-1")).toBeVisible();
+    await expect(page.getByTestId("card-1")).toBeVisible();
     await expect(page.getByText("Research competitors")).toBeVisible();
   });
 
   test("should allow renaming a column", async ({ page }) => {
-    const titleBtn = page.getByTestId("column-title-col-1");
+    const titleBtn = page.getByTestId("column-title-1");
     await titleBtn.click();
 
-    const titleInput = page.getByTestId("column-title-input-col-1");
+    const titleInput = page.getByTestId("column-title-input-1");
     await expect(titleInput).toBeVisible();
 
     await titleInput.fill("Ideas & Backlog");
     await titleInput.press("Enter");
 
-    await expect(page.getByTestId("column-title-col-1")).toContainText("Ideas & Backlog");
+    await expect(page.getByTestId("column-title-1")).toContainText("Ideas & Backlog");
   });
 
   test("should allow adding a new card to a selected column", async ({ page }) => {
-    const addCardBtn = page.getByTestId("add-card-button-col-1");
+    const addCardBtn = page.getByTestId("add-card-button-1");
     await addCardBtn.click();
 
     const modal = page.getByTestId("add-card-modal");
@@ -57,21 +58,30 @@ test.describe("Kanban Board MVP", () => {
   });
 
   test("should allow deleting an existing card", async ({ page }) => {
-    const card = page.getByTestId("card-card-1");
+    // Create a disposable card rather than deleting seed data, since later
+    // tests in this suite depend on the seeded cards still being present.
+    await page.getByTestId("add-card-button-1").click();
+    const modal = page.getByTestId("add-card-modal");
+    await expect(modal).toBeVisible();
+    await page.getByTestId("card-title-input").fill("Card To Delete");
+    await page.getByTestId("card-details-input").fill("Temporary card for the delete test");
+    await page.getByTestId("submit-card-button").click();
+    await expect(modal).not.toBeVisible();
+
+    const card = page.locator('[data-testid^="card-"]', { hasText: "Card To Delete" });
     await expect(card).toBeVisible();
 
     // Hover card to expose delete button
     await card.hover();
-    const deleteBtn = page.getByTestId("delete-card-card-1");
-    await deleteBtn.click();
+    await card.getByRole("button", { name: /delete card/i }).click();
 
     await expect(card).not.toBeVisible();
-    await expect(page.getByText("Research competitors")).not.toBeVisible();
+    await expect(page.getByText("Card To Delete")).not.toBeVisible();
   });
 
   test("should allow dragging and dropping a card to another column", async ({ page }) => {
-    const card = page.getByTestId("card-card-1");
-    const targetColumn = page.getByTestId("column-droppable-col-3");
+    const card = page.getByTestId("card-1");
+    const targetColumn = page.getByTestId("column-droppable-3");
 
     await card.hover();
     await page.mouse.down();
@@ -82,20 +92,20 @@ test.describe("Kanban Board MVP", () => {
     }
 
     // Verify target column contains card
-    await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
+    await expect(targetColumn.getByTestId("card-1")).toBeVisible();
   });
 
   test("should allow dragging a card into a completely empty column", async ({ page }) => {
-    // Delete single card in col-4 (Review) to make it empty
-    const cardInCol4 = page.getByTestId("card-card-7");
-    await cardInCol4.hover();
-    await page.getByTestId("delete-card-card-7").click();
-    await expect(cardInCol4).not.toBeVisible();
-    await expect(page.getByTestId("column-count-col-4")).toHaveText("0");
+    // Delete single card in column 4 (Review) to make it empty
+    const cardInColumn4 = page.getByTestId("card-7");
+    await cardInColumn4.hover();
+    await page.getByTestId("delete-card-7").click();
+    await expect(cardInColumn4).not.toBeVisible();
+    await expect(page.getByTestId("column-count-4")).toHaveText("0");
 
-    // Drag card-1 from col-1 into col-4
-    const cardToDrag = page.getByTestId("card-card-1");
-    const emptyColumn = page.getByTestId("column-col-4");
+    // Drag card 1 from column 1 into column 4
+    const cardToDrag = page.getByTestId("card-1");
+    const emptyColumn = page.getByTestId("column-4");
 
     await cardToDrag.hover();
     await page.mouse.down();
@@ -105,8 +115,8 @@ test.describe("Kanban Board MVP", () => {
       await page.mouse.up();
     }
 
-    // Verify empty column now contains card-1 and count is 1
-    await expect(emptyColumn.getByTestId("card-card-1")).toBeVisible();
-    await expect(page.getByTestId("column-count-col-4")).toHaveText("1");
+    // Verify empty column now contains card 1 and count is 1
+    await expect(emptyColumn.getByTestId("card-1")).toBeVisible();
+    await expect(page.getByTestId("column-count-4")).toHaveText("1");
   });
 });

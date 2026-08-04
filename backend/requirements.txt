@@ -2,5 +2,5 @@ fastapi
 uvicorn[standard]
 sqlmodel
 pytest
-httpx2
+httpx
 email-validator
