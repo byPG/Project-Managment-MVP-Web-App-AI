@@ -87,22 +87,18 @@ export function Board({ state, dispatch }: BoardProps) {
       return;
     }
 
-    let toColumn = state.columns.find((column) => column.id === overId);
-    let toIndex: number;
-
-    if (toColumn) {
-      toIndex = toColumn.cardIds.length;
-    } else {
-      toColumn = state.columns.find((column) => column.cardIds.includes(overId));
-      if (!toColumn) {
-        return;
-      }
-      toIndex = toColumn.cardIds.indexOf(overId);
+    const toColumn =
+      state.columns.find((column) => column.id === overId) ??
+      state.columns.find((column) => column.cardIds.includes(overId));
+    if (!toColumn) {
+      return;
     }
 
-    const fromIndex = fromColumn.cardIds.indexOf(activeId);
-    if (fromColumn.id === toColumn.id && fromIndex < toIndex) {
-      toIndex -= 1;
+    if (toColumn.id === fromColumn.id) {
+      // Reordering within a column isn't persisted by the backend, so treat
+      // an in-column drop as a no-op instead of an illusory local reorder
+      // that would silently revert on the next board refresh.
+      return;
     }
 
     dispatch({
@@ -111,7 +107,7 @@ export function Board({ state, dispatch }: BoardProps) {
         cardId: activeId,
         fromColumnId: fromColumn.id,
         toColumnId: toColumn.id,
-        toIndex,
+        toIndex: toColumn.cardIds.length,
       },
     });
   }

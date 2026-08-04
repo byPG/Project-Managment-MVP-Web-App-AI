@@ -69,4 +69,48 @@ describe("Home page", () => {
 
     expect(await screen.findByText(/invalid email or password/i)).toBeInTheDocument();
   });
+
+  it("shows an error message when the board fails to load", async () => {
+    const user = userEvent.setup();
+
+    global.fetch = vi.fn((input) => {
+      const url = typeof input === "string" ? input : String((input as Request).url);
+
+      if (url.includes("/api/health")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ok" }),
+        });
+      }
+
+      if (url.includes("/api/auth/sign-in")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ status: "ok", email: "demo@kanban.app" }),
+        });
+      }
+
+      if (url.includes("/api/board")) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ detail: "Board data is not available" }),
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    }) as unknown as typeof global.fetch;
+
+    render(<Home />);
+
+    await screen.findByText(/Backend online/i);
+
+    await user.clear(screen.getByLabelText(/email/i));
+    await user.type(screen.getByLabelText(/email/i), "demo@kanban.app");
+    await user.type(screen.getByLabelText(/password/i), "password123");
+    await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Board data is not available");
+  });
 });

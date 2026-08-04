@@ -15,6 +15,9 @@ frontend/playwright-report/
 frontend/test-results/
 frontend/blob-report/
 
+# Backend database
+backend/db/
+
 # Environment
 .env
 .env.*

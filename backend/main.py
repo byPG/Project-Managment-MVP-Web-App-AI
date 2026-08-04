@@ -1,8 +1,10 @@
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Body
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlmodel import Session, select
 
 from db import Board, Card, Column, create_db_and_tables, get_engine
@@ -27,11 +29,11 @@ class SignInResponse(BaseModel):
     email: EmailStr
 
 class ColumnRenameRequest(BaseModel):
-    title: str
+    title: str = Field(max_length=100)
 
 class AddCardRequest(BaseModel):
-    title: str
-    details: str = ""
+    title: str = Field(max_length=200)
+    details: str = Field(default="", max_length=2000)
 
 class MoveCardRequest(BaseModel):
     destination_column_id: int
@@ -77,6 +79,18 @@ def reorder_cards(column_id: int, session: Session) -> None:
     session.commit()
 
 
+def build_column_read(column: Column, session: Session) -> ColumnRead:
+    cards = session.exec(
+        select(Card).where(Card.column_id == column.id).order_by(Card.position),
+    ).all()
+    return ColumnRead(
+        id=column.id,
+        name=column.name,
+        position=column.position,
+        cards=[CardRead.model_validate(card) for card in cards],
+    )
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -93,19 +107,7 @@ def get_board():
             select(Column).where(Column.board_id == board.id).order_by(Column.position),
         ).all()
 
-        result_columns = []
-        for column in columns:
-            cards = session.exec(
-                select(Card).where(Card.column_id == column.id).order_by(Card.position),
-            ).all()
-            result_columns.append(
-                ColumnRead(
-                    id=column.id,
-                    name=column.name,
-                    position=column.position,
-                    cards=[CardRead.from_orm(card) for card in cards],
-                ),
-            )
+        result_columns = [build_column_read(column, session) for column in columns]
 
         return BoardRead(id=board.id, name=board.name, columns=result_columns)
 
@@ -126,16 +128,7 @@ def rename_column(column_id: int, payload: ColumnRenameRequest = Body(...)):
         session.commit()
         session.refresh(column)
 
-        cards = session.exec(
-            select(Card).where(Card.column_id == column.id).order_by(Card.position),
-        ).all()
-
-        return ColumnRead(
-            id=column.id,
-            name=column.name,
-            position=column.position,
-            cards=[CardRead.from_orm(card) for card in cards],
-        )
+        return build_column_read(column, session)
 
 
 @app.post("/api/columns/{column_id}/cards", response_model=CardRead)
@@ -164,7 +157,7 @@ def add_card(column_id: int, payload: AddCardRequest = Body(...)):
         session.commit()
         session.refresh(card)
 
-        return CardRead.from_orm(card)
+        return CardRead.model_validate(card)
 
 
 @app.delete("/api/cards/{card_id}")
@@ -206,15 +199,16 @@ def move_card(card_id: int, payload: MoveCardRequest = Body(...)):
         session.refresh(card)
         reorder_cards(source_column_id, session)
 
-        return CardRead.from_orm(card)
+        return CardRead.model_validate(card)
+
+
+DEMO_EMAIL = os.environ.get("DEMO_EMAIL", "demo@kanban.app")
+DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "password123")
 
 
 @app.post("/api/auth/sign-in", response_model=SignInResponse)
 def sign_in(payload: SignInRequest = Body(...)):
-    demo_email = "demo@kanban.app"
-    demo_password = "password123"
-
-    if payload.email != demo_email or payload.password != demo_password:
+    if payload.email != DEMO_EMAIL or payload.password != DEMO_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     return {"status": "ok", "email": payload.email}

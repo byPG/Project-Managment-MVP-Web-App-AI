@@ -70,9 +70,12 @@ def seed_initial_data(session: Session) -> None:
     session.commit()
 
     column_by_position = {column.position: column for column in columns}
+    next_card_position: dict[int, int] = {}
     cards = []
-    for position, (title, details, column_position) in enumerate(INITIAL_CARDS, start=1):
+    for title, details, column_position in INITIAL_CARDS:
         column = column_by_position[column_position]
+        position = next_card_position.get(column.id, 0) + 1
+        next_card_position[column.id] = position
         cards.append(
             Card(
                 column_id=column.id,

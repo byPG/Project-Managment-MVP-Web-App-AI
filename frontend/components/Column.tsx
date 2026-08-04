@@ -67,6 +67,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
                 onBlur={handleTitleSubmit}
                 onKeyDown={handleKeyDown}
                 data-testid={`column-title-input-${column.id}`}
+                aria-label={`Rename ${column.title} column`}
                 autoFocus
                 className={styles.titleInput}
               />
@@ -86,6 +87,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -134,6 +136,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
             viewBox="0 0 24 24"
             width="16"
             height="16"
+            aria-hidden="true"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>

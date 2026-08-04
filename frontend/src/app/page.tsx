@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useReducer, useState } from "react";
-import type { BoardAction } from "../../lib/types";
+import type { BoardAction, BoardState } from "../../lib/types";
 import { Board } from "@/components/Board";
 import { boardReducer } from "@/lib/boardReducer";
-import { dummyBoardState } from "@/lib/dummyData";
 import {
   addCard,
   deleteCard as deleteCardApi,
@@ -19,11 +18,13 @@ type HealthStatus = "loading" | "ok" | "error";
 
 type SignInStatus = "idle" | "submitting";
 
-const DEMO_EMAIL = "demo@kanban.app";
-const DEMO_PASSWORD = "password123";
+const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "demo@kanban.app";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "password123";
+
+const emptyBoardState: BoardState = { cards: {}, columns: [] };
 
 export default function Home() {
-  const [state, dispatch] = useReducer(boardReducer, dummyBoardState);
+  const [state, dispatch] = useReducer(boardReducer, emptyBoardState);
   const [healthStatus, setHealthStatus] = useState<HealthStatus>("loading");
   const [healthMessage, setHealthMessage] = useState("Checking backend connection...");
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -32,7 +33,12 @@ export default function Home() {
   const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState("");
   const [boardError, setBoardError] = useState("");
+  // True while the initial board fetch or any mutation's round-trip is in
+  // flight. Only used to gate the full-page placeholder before the board has
+  // ever loaded (see hasBoard below) — once loaded, the board stays mounted
+  // through subsequent mutations instead of flashing out to a placeholder.
   const [isBoardLoading, setIsBoardLoading] = useState(false);
+  const hasBoard = state.columns.length > 0;
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -111,11 +117,8 @@ export default function Home() {
           return;
 
         case "moveCard":
-          if (action.payload.fromColumnId === action.payload.toColumnId) {
-            dispatch(action);
-            return;
-          }
-
+          // Board.tsx only dispatches this for cross-column drops (same-
+          // column reordering isn't persisted, so it's a no-op there).
           await moveCardApi(apiBase, action.payload.cardId, action.payload.toColumnId);
           await refreshBoard();
           return;
@@ -124,11 +127,12 @@ export default function Home() {
           return;
       }
     } catch (error) {
-        setBoardError(error instanceof Error ? error.message : "Unable to update board.");
-      } finally {
-        setIsBoardLoading(false);
-      }
+      setBoardError(error instanceof Error ? error.message : "Unable to update board.");
+    } finally {
+      setIsBoardLoading(false);
     }
+  }
+
   function dispatchAction(action: BoardAction) {
     void handleBoardAction(action);
   }
@@ -261,13 +265,13 @@ export default function Home() {
           {boardError}
         </p>
       ) : null}
-      {isBoardLoading ? (
+      {hasBoard ? (
+        <Board state={state} dispatch={dispatchAction} />
+      ) : isBoardLoading ? (
         <div className={styles.boardStatus} role="status" aria-live="polite">
           Loading board data…
         </div>
-      ) : (
-        <Board state={state} dispatch={dispatchAction} />
-      )}
+      ) : null}
     </main>
   );
 }

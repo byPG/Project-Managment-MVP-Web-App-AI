@@ -8,6 +8,12 @@ function findColumnIndex(columns: BoardState["columns"], columnId: string): numb
   return columns.findIndex((column) => column.id === columnId);
 }
 
+// The backend is the source of truth: page.tsx applies every mutation by
+// calling the API and then dispatching "setBoard" with the refreshed data.
+// So renameColumn/addCard/deleteCard/moveCard below are never reached from
+// the live app — only "setBoard" is. The other cases exist for this
+// reducer's own unit tests (and as a safety net if a future change starts
+// dispatching them directly).
 export function boardReducer(state: BoardState, action: BoardAction): BoardState {
   switch (action.type) {
     case "renameColumn": {

@@ -86,4 +86,16 @@ describe("Board component", () => {
       cardId: "card-1",
     });
   });
+
+  it("prevents submitting a card without a title", () => {
+    const dispatch = vi.fn();
+    render(<Board state={dummyState} dispatch={dispatch} />);
+
+    fireEvent.click(screen.getByTestId("add-card-button-col-1"));
+    fireEvent.click(screen.getByTestId("submit-card-button"));
+
+    expect(screen.getByText("Card title is required")).toBeInTheDocument();
+    expect(screen.getByTestId("add-card-modal")).toBeInTheDocument();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
 });

@@ -167,12 +167,6 @@
   flex-shrink: 0;
 }
 
-.addIcon {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-}
-
 .addButton:hover,
 .addButton:focus-visible {
   border-color: var(--primary-blue);

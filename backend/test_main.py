@@ -164,3 +164,21 @@ def test_move_card_to_invalid_column_returns_404():
     )
     assert response.status_code == 404
     assert response.json()["detail"] == "Destination column not found"
+
+
+def test_rename_nonexistent_column_returns_404():
+    response = client.patch(
+        "/api/columns/99999",
+        json={"title": "Does not matter"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Column not found"
+
+
+def test_add_card_to_nonexistent_column_returns_404():
+    response = client.post(
+        "/api/columns/99999/cards",
+        json={"title": "Orphan card", "details": ""},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Column not found"
