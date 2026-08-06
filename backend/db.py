@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Field, Session, SQLModel, create_engine
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_DIR = BASE_DIR / "db"
@@ -64,19 +64,28 @@ def get_engine(database_url: str = DATABASE_URL):
     return create_engine(database_url, echo=False, connect_args=connect_args)
 
 
-def create_default_board(session: Session, owner_id: int, name: str = "My First Board") -> Board:
+def create_board(session: Session, owner_id: int, name: str) -> Board:
     board = Board(owner_id=owner_id, name=name)
     session.add(board)
     session.commit()
     session.refresh(board)
 
-    columns = []
-    for position, column_name in enumerate(COLUMN_NAMES, start=1):
-        columns.append(Column(board_id=board.id, name=column_name, position=position))
-
+    columns = [
+        Column(board_id=board.id, name=column_name, position=position)
+        for position, column_name in enumerate(COLUMN_NAMES, start=1)
+    ]
     session.add_all(columns)
     session.commit()
 
+    return board
+
+
+def create_default_board(session: Session, owner_id: int, name: str = "My First Board") -> Board:
+    board = create_board(session, owner_id, name)
+
+    columns = session.exec(
+        select(Column).where(Column.board_id == board.id).order_by(Column.position),
+    ).all()
     column_by_position = {column.position: column for column in columns}
     next_card_position: dict[int, int] = {}
     cards = []

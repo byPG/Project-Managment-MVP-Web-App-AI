@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlmodel import Session, select
 
 import auth
-from db import Board, Card, Column, User, create_default_board, get_engine
+from db import Board, Card, Column, User, create_board, create_default_board, get_engine
 
 DEMO_EMAIL = os.environ.get("DEMO_EMAIL", "demo@kanban.app")
 DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "password123")
@@ -39,6 +39,67 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     return user
+
+
+def get_owned_board(board_id: int, user: User, session: Session) -> Board:
+    board = session.get(Board, board_id)
+    if board is None or board.owner_id != user.id:
+        # 404 rather than 403 so a guessed id can't be distinguished from one
+        # that genuinely doesn't exist.
+        raise HTTPException(status_code=404, detail="Board not found")
+    return board
+
+
+def get_owned_column(column_id: int, user: User, session: Session) -> Column:
+    column = session.get(Column, column_id)
+    if column is None:
+        raise HTTPException(status_code=404, detail="Column not found")
+
+    board = session.get(Board, column.board_id)
+    if board is None or board.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Column not found")
+
+    return column
+
+
+def get_owned_card(card_id: int, user: User, session: Session) -> Card:
+    card = session.get(Card, card_id)
+    if card is None:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    column = session.get(Column, card.column_id)
+    board = session.get(Board, column.board_id) if column is not None else None
+    if board is None or board.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    return card
+
+
+def delete_column_cascade(column_id: int, session: Session) -> None:
+    cards = session.exec(select(Card).where(Card.column_id == column_id)).all()
+    for card in cards:
+        session.delete(card)
+
+    column = session.get(Column, column_id)
+    if column is not None:
+        session.delete(column)
+
+    session.commit()
+
+
+def delete_board_cascade(board_id: int, session: Session) -> None:
+    columns = session.exec(select(Column).where(Column.board_id == board_id)).all()
+    for column in columns:
+        cards = session.exec(select(Card).where(Card.column_id == column.id)).all()
+        for card in cards:
+            session.delete(card)
+        session.delete(column)
+
+    board = session.get(Board, board_id)
+    if board is not None:
+        session.delete(board)
+
+    session.commit()
 
 
 def set_auth_cookie(response: Response, user_id: int) -> None:
@@ -98,6 +159,18 @@ class UserRead(BaseModel):
 
     id: int
     email: str
+
+class BoardSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+class BoardCreateRequest(BaseModel):
+    name: str = Field(max_length=100)
+
+class BoardRenameRequest(BaseModel):
+    name: str = Field(max_length=100)
 
 class ColumnRenameRequest(BaseModel):
     title: str = Field(max_length=100)
@@ -160,9 +233,14 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/api/board", response_model=BoardRead)
-def get_board(session: Session = Depends(get_session)):
-    board = session.exec(select(Board)).first()
+@app.get("/api/board", response_model=BoardRead, deprecated=True)
+def get_board(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    # Deprecated: superseded by GET /api/boards/{board_id}. Kept only so
+    # already-built frontend code that hasn't migrated to board-scoped URLs
+    # keeps working; returns the caller's first board. Removed in Part 18.
+    board = session.exec(
+        select(Board).where(Board.owner_id == user.id).order_by(Board.id),
+    ).first()
     if board is None:
         raise HTTPException(status_code=500, detail="Board data is not available")
 
@@ -175,15 +253,86 @@ def get_board(session: Session = Depends(get_session)):
     return BoardRead(id=board.id, name=board.name, columns=result_columns)
 
 
+@app.get("/api/boards", response_model=list[BoardSummary])
+def list_boards(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return session.exec(
+        select(Board).where(Board.owner_id == user.id).order_by(Board.id),
+    ).all()
+
+
+@app.post("/api/boards", response_model=BoardSummary, status_code=201)
+def create_board_route(
+    payload: BoardCreateRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Board name must not be empty")
+
+    return create_board(session, owner_id=user.id, name=name)
+
+
+@app.get("/api/boards/{board_id}", response_model=BoardRead)
+def get_board_by_id(
+    board_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    board = get_owned_board(board_id, user, session)
+
+    columns = session.exec(
+        select(Column).where(Column.board_id == board.id).order_by(Column.position),
+    ).all()
+    result_columns = [build_column_read(column, session) for column in columns]
+
+    return BoardRead(id=board.id, name=board.name, columns=result_columns)
+
+
+@app.patch("/api/boards/{board_id}", response_model=BoardSummary)
+def rename_board(
+    board_id: int,
+    payload: BoardRenameRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Board name must not be empty")
+
+    board = get_owned_board(board_id, user, session)
+    board.name = name
+    session.add(board)
+    session.commit()
+    session.refresh(board)
+
+    return board
+
+
+@app.delete("/api/boards/{board_id}")
+def delete_board(
+    board_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    get_owned_board(board_id, user, session)
+    delete_board_cascade(board_id, session)
+
+    return {"status": "ok"}
+
+
 @app.patch("/api/columns/{column_id}", response_model=ColumnRead)
-def rename_column(column_id: int, payload: ColumnRenameRequest = Body(...), session: Session = Depends(get_session)):
+def rename_column(
+    column_id: int,
+    payload: ColumnRenameRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Column title must not be empty")
 
-    column = session.get(Column, column_id)
-    if column is None:
-        raise HTTPException(status_code=404, detail="Column not found")
+    column = get_owned_column(column_id, user, session)
 
     column.name = title
     session.add(column)
@@ -194,14 +343,17 @@ def rename_column(column_id: int, payload: ColumnRenameRequest = Body(...), sess
 
 
 @app.post("/api/columns/{column_id}/cards", response_model=CardRead)
-def add_card(column_id: int, payload: AddCardRequest = Body(...), session: Session = Depends(get_session)):
+def add_card(
+    column_id: int,
+    payload: AddCardRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Card title is required")
 
-    column = session.get(Column, column_id)
-    if column is None:
-        raise HTTPException(status_code=404, detail="Column not found")
+    column = get_owned_column(column_id, user, session)
 
     cards = session.exec(
         select(Card).where(Card.column_id == column.id).order_by(Card.position),
@@ -222,10 +374,12 @@ def add_card(column_id: int, payload: AddCardRequest = Body(...), session: Sessi
 
 
 @app.delete("/api/cards/{card_id}")
-def delete_card(card_id: int, session: Session = Depends(get_session)):
-    card = session.get(Card, card_id)
-    if card is None:
-        raise HTTPException(status_code=404, detail="Card not found")
+def delete_card(
+    card_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    card = get_owned_card(card_id, user, session)
 
     column_id = card.column_id
     session.delete(card)
@@ -236,13 +390,29 @@ def delete_card(card_id: int, session: Session = Depends(get_session)):
 
 
 @app.patch("/api/cards/{card_id}/move", response_model=CardRead)
-def move_card(card_id: int, payload: MoveCardRequest = Body(...), session: Session = Depends(get_session)):
-    card = session.get(Card, card_id)
-    if card is None:
-        raise HTTPException(status_code=404, detail="Card not found")
+def move_card(
+    card_id: int,
+    payload: MoveCardRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    card = get_owned_card(card_id, user, session)
 
     destination_column = session.get(Column, payload.destination_column_id)
-    if destination_column is None:
+    destination_board = (
+        session.get(Board, destination_column.board_id) if destination_column is not None else None
+    )
+    source_column = session.get(Column, card.column_id)
+    # A single check covering "doesn't exist", "not owned", and "belongs to
+    # a different one of the caller's own boards" - all indistinguishable
+    # from the caller's point of view, so they share one 404 message.
+    if (
+        destination_column is None
+        or destination_board is None
+        or destination_board.owner_id != user.id
+        or source_column is None
+        or destination_column.board_id != source_column.board_id
+    ):
         raise HTTPException(status_code=404, detail="Destination column not found")
 
     source_column_id = card.column_id

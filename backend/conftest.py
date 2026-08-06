@@ -53,9 +53,18 @@ def user(session: Session) -> User:
 
 
 @pytest.fixture()
-def seeded_board(session: Session, user: User):
+def seeded_board(session: Session, user: User, client: TestClient):
     board = create_default_board(session, owner_id=user.id)
     columns = session.exec(
         select(Column).where(Column.board_id == board.id).order_by(Column.position),
     ).all()
+
+    # Board/column/card routes require auth now, so leave `client`
+    # authenticated as the board's owner for tests that request both fixtures.
+    sign_in_response = client.post(
+        "/api/auth/sign-in",
+        json={"email": user.email, "password": "password123"},
+    )
+    assert sign_in_response.status_code == 200
+
     return {"board": board, "columns": columns, "user": user}
