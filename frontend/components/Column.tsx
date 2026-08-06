@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -21,6 +21,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -124,6 +125,7 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
 
         {/* Add Card Action */}
         <button
+          ref={addButtonRef}
           type="button"
           onClick={() => setIsAddModalOpen(true)}
           data-testid={`add-card-button-${column.id}`}
@@ -148,7 +150,10 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
         columnId={column.id}
         columnTitle={column.title}
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          addButtonRef.current?.focus();
+        }}
         dispatch={dispatch}
       />
     </>

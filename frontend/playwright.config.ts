@@ -19,7 +19,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Wide enough that all five columns fit without horizontal
+        // scrolling, so drag-and-drop tests land on the intended column
+        // instead of racing the board's scroll-into-view auto-scroll.
+        viewport: { width: 1920, height: 1080 },
+      },
     },
   ],
   webServer: {

@@ -1,4 +1,4 @@
-import type { BoardAction, BoardState } from "./types";
+import type { BoardAction, BoardState, MoveCardPayload } from "./types";
 
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -6,6 +6,37 @@ function createId(prefix: string): string {
 
 function findColumnIndex(columns: BoardState["columns"], columnId: string): number {
   return columns.findIndex((column) => column.id === columnId);
+}
+
+// Resolves a dnd-kit drag-end event (raw dragged-item id + raw drop-target
+// id) into a moveCard payload, or null if the drop is a no-op. Card IDs and
+// column IDs are independent auto-increment sequences from the backend, so a
+// card's ID can coincidentally equal a column's ID (e.g. card 4 dropped on
+// column 4) — this must not be mistaken for "dropped on itself" just because
+// the raw ids match.
+export function resolveDragMove(
+  columns: BoardState["columns"],
+  activeId: string,
+  overId: string,
+): MoveCardPayload | null {
+  const fromColumn = columns.find((column) => column.cardIds.includes(activeId));
+  if (!fromColumn) {
+    return null;
+  }
+
+  const toColumn =
+    columns.find((column) => column.id === overId) ??
+    columns.find((column) => column.cardIds.includes(overId));
+  if (!toColumn || toColumn.id === fromColumn.id) {
+    return null;
+  }
+
+  return {
+    cardId: activeId,
+    fromColumnId: fromColumn.id,
+    toColumnId: toColumn.id,
+    toIndex: toColumn.cardIds.length,
+  };
 }
 
 // The backend is the source of truth: page.tsx applies every mutation by

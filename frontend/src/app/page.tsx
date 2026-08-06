@@ -30,7 +30,7 @@ export default function Home() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [signInStatus, setSignInStatus] = useState<SignInStatus>("idle");
   const [signInError, setSignInError] = useState("");
-  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [boardError, setBoardError] = useState("");
   // True while the initial board fetch or any mutation's round-trip is in

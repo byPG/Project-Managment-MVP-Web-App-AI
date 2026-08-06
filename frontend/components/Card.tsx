@@ -59,7 +59,6 @@ export function Card({ card, dispatch, overlay = false }: CardProps) {
             className={styles.deleteButton}
           >
             <svg
-              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

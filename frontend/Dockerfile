@@ -20,7 +20,6 @@ COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/src/app ./src/app
 COPY --from=builder /app/components ./components
 COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 
 EXPOSE 3000
 ENV NODE_ENV=production

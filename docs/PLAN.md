@@ -801,15 +801,17 @@ Include only:
 
 ## Progress checklist
 
-- [ ] Part 1: Plan
-- [ ] Part 2: Scaffolding
-- [ ] Part 3: Add in Frontend
-- [ ] Part 4: Add in a fake user sign in experience
-- [ ] Part 5: Database modeling
-- [ ] Part 6: Backend
-- [ ] Part 7: Frontend + Backend
-- [ ] Part 8: Drag and drop
-- [ ] Part 9: UI, responsiveness and accessibility
-- [ ] Part 10: Testing, final verification and delivery
+- [x] Part 1: Plan
+- [x] Part 2: Scaffolding
+- [x] Part 3: Add in Frontend
+- [x] Part 4: Add in a fake user sign in experience
+- [x] Part 5: Database modeling
+- [x] Part 6: Backend
+- [x] Part 7: Frontend + Backend
+- [x] Part 8: Drag and drop
+- [x] Part 9: UI, responsiveness and accessibility
+- [x] Part 10: Testing, final verification and delivery
 
 Do not mark a part as complete until all of its tasks and success criteria have been verified.
+
+Verified as of 2026-08-06: `docker compose build` succeeds for both services; backend `pytest` (15/15) passes inside the built image; frontend `npx vitest run` (18/18), `npx eslint .`, and `npm run build` all pass; the Playwright e2e suite (6/6) passes reliably across repeated runs against a persistent local database (not just a freshly seeded one).

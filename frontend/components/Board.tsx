@@ -18,6 +18,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Column } from "@/components/Column";
 import { Card } from "@/components/Card";
+import { resolveDragMove } from "@/lib/boardReducer";
 import styles from "./Board.module.css";
 import type { BoardAction, BoardState, Card as CardType } from "@/lib/types";
 
@@ -76,40 +77,17 @@ export function Board({ state, dispatch }: BoardProps) {
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    if (activeId === overId) {
+    // Reordering within a column isn't persisted by the backend, so a drop
+    // that resolves to the card's current column (including a card dropped
+    // on itself) is correctly treated as a no-op inside resolveDragMove,
+    // rather than an illusory local reorder that would silently revert on
+    // the next board refresh.
+    const payload = resolveDragMove(state.columns, activeId, overId);
+    if (!payload) {
       return;
     }
 
-    const fromColumn = state.columns.find((column) =>
-      column.cardIds.includes(activeId),
-    );
-    if (!fromColumn) {
-      return;
-    }
-
-    const toColumn =
-      state.columns.find((column) => column.id === overId) ??
-      state.columns.find((column) => column.cardIds.includes(overId));
-    if (!toColumn) {
-      return;
-    }
-
-    if (toColumn.id === fromColumn.id) {
-      // Reordering within a column isn't persisted by the backend, so treat
-      // an in-column drop as a no-op instead of an illusory local reorder
-      // that would silently revert on the next board refresh.
-      return;
-    }
-
-    dispatch({
-      type: "moveCard",
-      payload: {
-        cardId: activeId,
-        fromColumnId: fromColumn.id,
-        toColumnId: toColumn.id,
-        toIndex: toColumn.cardIds.length,
-      },
-    });
+    dispatch({ type: "moveCard", payload });
   }
 
   const boardContent = (

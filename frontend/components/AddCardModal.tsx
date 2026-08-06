@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import styles from "./AddCardModal.module.css";
 import type { BoardAction } from "@/lib/types";
+
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 type AddCardModalProps = {
   columnId: string;
@@ -22,8 +25,39 @@ export function AddCardModal({
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [error, setError] = useState("");
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = `add-card-modal-title-${columnId}`;
 
   if (!isOpen) return null;
+
+  function handleDialogKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Escape") {
+      handleClose();
+      return;
+    }
+
+    if (e.key !== "Tab" || !dialogRef.current) {
+      return;
+    }
+
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+    );
+    if (focusable.length === 0) {
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,9 +91,17 @@ export function AddCardModal({
 
   return (
     <div className={styles.overlay} data-testid="add-card-modal" onClick={handleClose}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={styles.dialog}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
+      >
         <div className={styles.header}>
-          <h2 className={styles.title}>
+          <h2 id={titleId} className={styles.title}>
             Add Card to <span className={styles.titleAccent}>{columnTitle}</span>
           </h2>
           <button
@@ -69,7 +111,6 @@ export function AddCardModal({
             className={styles.closeButton}
           >
             <svg
-              className="h-5 w-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
