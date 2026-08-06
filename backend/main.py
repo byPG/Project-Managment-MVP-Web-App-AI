@@ -1,15 +1,32 @@
 import os
+from contextlib import asynccontextmanager
+from typing import Iterator
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Body
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlmodel import Session, select
 
-from db import Board, Card, Column, create_db_and_tables, get_engine
+from db import Board, Card, Column, get_engine, seed_if_empty
 
-app = FastAPI()
+engine = get_engine()
+
+
+def get_session() -> Iterator[Session]:
+    with Session(engine) as session:
+        yield session
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    with Session(engine) as session:
+        seed_if_empty(session)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
@@ -62,13 +79,6 @@ class BoardRead(BaseModel):
     name: str
     columns: list[ColumnRead]
 
-engine = create_db_and_tables()
-
-
-def get_session() -> Session:
-    return Session(engine)
-
-
 def reorder_cards(column_id: int, session: Session) -> None:
     cards = session.exec(
         select(Card).where(Card.column_id == column_id).order_by(Card.position),
@@ -97,109 +107,104 @@ def health():
 
 
 @app.get("/api/board", response_model=BoardRead)
-def get_board():
-    with get_session() as session:
-        board = session.exec(select(Board)).first()
-        if board is None:
-            raise HTTPException(status_code=500, detail="Board data is not available")
+def get_board(session: Session = Depends(get_session)):
+    board = session.exec(select(Board)).first()
+    if board is None:
+        raise HTTPException(status_code=500, detail="Board data is not available")
 
-        columns = session.exec(
-            select(Column).where(Column.board_id == board.id).order_by(Column.position),
-        ).all()
+    columns = session.exec(
+        select(Column).where(Column.board_id == board.id).order_by(Column.position),
+    ).all()
 
-        result_columns = [build_column_read(column, session) for column in columns]
+    result_columns = [build_column_read(column, session) for column in columns]
 
-        return BoardRead(id=board.id, name=board.name, columns=result_columns)
+    return BoardRead(id=board.id, name=board.name, columns=result_columns)
 
 
 @app.patch("/api/columns/{column_id}", response_model=ColumnRead)
-def rename_column(column_id: int, payload: ColumnRenameRequest = Body(...)):
+def rename_column(column_id: int, payload: ColumnRenameRequest = Body(...), session: Session = Depends(get_session)):
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Column title must not be empty")
 
-    with get_session() as session:
-        column = session.get(Column, column_id)
-        if column is None:
-            raise HTTPException(status_code=404, detail="Column not found")
+    column = session.get(Column, column_id)
+    if column is None:
+        raise HTTPException(status_code=404, detail="Column not found")
 
-        column.name = title
-        session.add(column)
-        session.commit()
-        session.refresh(column)
+    column.name = title
+    session.add(column)
+    session.commit()
+    session.refresh(column)
 
-        return build_column_read(column, session)
+    return build_column_read(column, session)
 
 
 @app.post("/api/columns/{column_id}/cards", response_model=CardRead)
-def add_card(column_id: int, payload: AddCardRequest = Body(...)):
+def add_card(column_id: int, payload: AddCardRequest = Body(...), session: Session = Depends(get_session)):
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Card title is required")
 
-    with get_session() as session:
-        column = session.get(Column, column_id)
-        if column is None:
-            raise HTTPException(status_code=404, detail="Column not found")
+    column = session.get(Column, column_id)
+    if column is None:
+        raise HTTPException(status_code=404, detail="Column not found")
 
-        cards = session.exec(
-            select(Card).where(Card.column_id == column.id).order_by(Card.position),
-        ).all()
-        next_position = cards[-1].position + 1 if cards else 1
+    cards = session.exec(
+        select(Card).where(Card.column_id == column.id).order_by(Card.position),
+    ).all()
+    next_position = cards[-1].position + 1 if cards else 1
 
-        card = Card(
-            column_id=column.id,
-            title=title,
-            details=payload.details.strip(),
-            position=next_position,
-        )
-        session.add(card)
-        session.commit()
-        session.refresh(card)
+    card = Card(
+        column_id=column.id,
+        title=title,
+        details=payload.details.strip(),
+        position=next_position,
+    )
+    session.add(card)
+    session.commit()
+    session.refresh(card)
 
-        return CardRead.model_validate(card)
+    return CardRead.model_validate(card)
 
 
 @app.delete("/api/cards/{card_id}")
-def delete_card(card_id: int):
-    with get_session() as session:
-        card = session.get(Card, card_id)
-        if card is None:
-            raise HTTPException(status_code=404, detail="Card not found")
+def delete_card(card_id: int, session: Session = Depends(get_session)):
+    card = session.get(Card, card_id)
+    if card is None:
+        raise HTTPException(status_code=404, detail="Card not found")
 
-        column_id = card.column_id
-        session.delete(card)
-        session.commit()
-        reorder_cards(column_id, session)
+    column_id = card.column_id
+    session.delete(card)
+    session.commit()
+    reorder_cards(column_id, session)
 
-        return {"status": "ok"}
+    return {"status": "ok"}
 
 
 @app.patch("/api/cards/{card_id}/move", response_model=CardRead)
-def move_card(card_id: int, payload: MoveCardRequest = Body(...)):
-    with get_session() as session:
-        card = session.get(Card, card_id)
-        if card is None:
-            raise HTTPException(status_code=404, detail="Card not found")
+def move_card(card_id: int, payload: MoveCardRequest = Body(...), session: Session = Depends(get_session)):
+    card = session.get(Card, card_id)
+    if card is None:
+        raise HTTPException(status_code=404, detail="Card not found")
 
-        destination_column = session.get(Column, payload.destination_column_id)
-        if destination_column is None:
-            raise HTTPException(status_code=404, detail="Destination column not found")
+    destination_column = session.get(Column, payload.destination_column_id)
+    if destination_column is None:
+        raise HTTPException(status_code=404, detail="Destination column not found")
 
-        source_column_id = card.column_id
-        card.column_id = destination_column.id
+    source_column_id = card.column_id
+    card.column_id = destination_column.id
 
-        destination_cards = session.exec(
-            select(Card).where(Card.column_id == destination_column.id).order_by(Card.position),
-        ).all()
-        card.position = destination_cards[-1].position + 1 if destination_cards else 1
+    destination_cards = session.exec(
+        select(Card).where(Card.column_id == destination_column.id).order_by(Card.position),
+    ).all()
+    card.position = destination_cards[-1].position + 1 if destination_cards else 1
 
-        session.add(card)
-        session.commit()
-        session.refresh(card)
-        reorder_cards(source_column_id, session)
+    session.add(card)
+    session.commit()
+    session.refresh(card)
+    reorder_cards(source_column_id, session)
 
-        return CardRead.model_validate(card)
+    return CardRead.model_validate(card)
 
 
 DEMO_EMAIL = os.environ.get("DEMO_EMAIL", "demo@kanban.app")

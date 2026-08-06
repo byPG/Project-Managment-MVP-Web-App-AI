@@ -89,13 +89,7 @@ def seed_initial_data(session: Session) -> None:
     session.commit()
 
 
-def create_db_and_tables(engine=None):
-    engine = engine or get_engine()
-    SQLModel.metadata.create_all(engine)
-
-    with Session(engine) as session:
-        existing_board = session.exec(select(Board)).first()
-        if existing_board is None:
-            seed_initial_data(session)
-
-    return engine
+def seed_if_empty(session: Session) -> None:
+    existing_board = session.exec(select(Board)).first()
+    if existing_board is None:
+        seed_initial_data(session)
