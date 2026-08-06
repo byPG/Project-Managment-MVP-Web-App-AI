@@ -20,16 +20,55 @@ type ApiBoard = {
   columns: ApiColumn[];
 };
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function fetchJson(url: string, options?: RequestInit) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, { ...options, credentials: "include" });
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
     const detail = body?.detail || body?.message || response.statusText;
-    throw new Error(detail || "Request failed");
+    throw new ApiError(detail || "Request failed", response.status);
   }
 
   return body;
+}
+
+export type ApiUser = {
+  id: number;
+  email: string;
+};
+
+export async function signUp(apiBase: string, email: string, password: string): Promise<ApiUser> {
+  return fetchJson(`${apiBase}/api/auth/sign-up`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function signIn(apiBase: string, email: string, password: string): Promise<ApiUser> {
+  return fetchJson(`${apiBase}/api/auth/sign-in`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function signOut(apiBase: string): Promise<void> {
+  await fetchJson(`${apiBase}/api/auth/sign-out`, { method: "POST" });
+}
+
+export async function fetchCurrentUser(apiBase: string): Promise<ApiUser> {
+  return fetchJson(`${apiBase}/api/auth/me`);
 }
 
 export function normalizeBoardResponse(board: ApiBoard): BoardState {
