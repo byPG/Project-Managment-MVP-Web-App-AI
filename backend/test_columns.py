@@ -3,7 +3,7 @@ def test_get_board_returns_five_columns(client, seeded_board):
     assert response.status_code == 200
     data = response.json()
 
-    assert data["name"] == "Project Kanban Board"
+    assert data["name"] == "My First Board"
     assert len(data["columns"]) == 5
     assert [col["name"] for col in data["columns"]] == [
         "Backlog",

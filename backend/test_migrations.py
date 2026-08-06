@@ -28,10 +28,13 @@ def test_alembic_upgrade_head_creates_expected_schema(tmp_path):
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
 
-    assert {"board", "column", "card"}.issubset(tables)
+    assert {"user", "board", "column", "card"}.issubset(tables)
+
+    user_columns = {col["name"] for col in inspector.get_columns("user")}
+    assert user_columns == {"id", "email", "hashed_password", "created_at"}
 
     board_columns = {col["name"] for col in inspector.get_columns("board")}
-    assert board_columns == {"id", "name"}
+    assert board_columns == {"id", "owner_id", "name"}
 
     column_columns = {col["name"] for col in inspector.get_columns("column")}
     assert column_columns == {"id", "board_id", "name", "position"}

@@ -10,6 +10,8 @@ services:
     environment:
       - DEMO_EMAIL=demo@kanban.app
       - DEMO_PASSWORD=password123
+      - JWT_SECRET=local-dev-secret-change-me
+      - COOKIE_SECURE=false
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
       interval: 10s

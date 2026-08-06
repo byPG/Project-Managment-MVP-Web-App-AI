@@ -2,13 +2,17 @@ import os
 from typing import Iterator
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+# Full-cost bcrypt (~200-300ms/hash) turns every signup-driven fixture into
+# minutes of test time; a low round count keeps hashing correct but fast.
+os.environ.setdefault("BCRYPT_ROUNDS", "4")
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from db import Board, Column, seed_initial_data
+import auth
+from db import Column, User, create_default_board
 from main import app, get_session
 
 
@@ -40,10 +44,18 @@ def client(session: Session) -> Iterator[TestClient]:
 
 
 @pytest.fixture()
-def seeded_board(session: Session):
-    seed_initial_data(session)
-    board = session.exec(select(Board)).first()
+def user(session: Session) -> User:
+    new_user = User(email="owner@example.com", hashed_password=auth.hash_password("password123"))
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    return new_user
+
+
+@pytest.fixture()
+def seeded_board(session: Session, user: User):
+    board = create_default_board(session, owner_id=user.id)
     columns = session.exec(
         select(Column).where(Column.board_id == board.id).order_by(Column.position),
     ).all()
-    return {"board": board, "columns": columns}
+    return {"board": board, "columns": columns, "user": user}

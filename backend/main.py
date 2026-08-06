@@ -2,14 +2,18 @@ import os
 from contextlib import asynccontextmanager
 from typing import Iterator
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Body
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlmodel import Session, select
 
-from db import Board, Card, Column, get_engine, seed_if_empty
+import auth
+from db import Board, Card, Column, User, create_default_board, get_engine
+
+DEMO_EMAIL = os.environ.get("DEMO_EMAIL", "demo@kanban.app")
+DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "password123")
 
 engine = get_engine()
 
@@ -19,10 +23,53 @@ def get_session() -> Iterator[Session]:
         yield session
 
 
+def get_current_user(
+    access_token: str | None = Cookie(default=None, alias=auth.COOKIE_NAME),
+    session: Session = Depends(get_session),
+) -> User:
+    if access_token is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user_id = auth.decode_access_token(access_token)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    return user
+
+
+def set_auth_cookie(response: Response, user_id: int) -> None:
+    token = auth.create_access_token(user_id)
+    response.set_cookie(
+        auth.COOKIE_NAME,
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=auth.COOKIE_SECURE,
+        path="/",
+        max_age=auth.ACCESS_TOKEN_TTL_SECONDS,
+    )
+
+
+def ensure_demo_user(session: Session) -> None:
+    existing = session.exec(select(User).where(User.email == DEMO_EMAIL)).first()
+    if existing is not None:
+        return
+
+    user = User(email=DEMO_EMAIL, hashed_password=auth.hash_password(DEMO_PASSWORD))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    create_default_board(session, owner_id=user.id, name="Project Kanban Board")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     with Session(engine) as session:
-        seed_if_empty(session)
+        ensure_demo_user(session)
     yield
 
 
@@ -33,17 +80,24 @@ origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+class SignUpRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=72)
 
 class SignInRequest(BaseModel):
     email: EmailStr
     password: str
 
-class SignInResponse(BaseModel):
-    status: str
-    email: EmailStr
+class UserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
 
 class ColumnRenameRequest(BaseModel):
     title: str = Field(max_length=100)
@@ -207,16 +261,47 @@ def move_card(card_id: int, payload: MoveCardRequest = Body(...), session: Sessi
     return CardRead.model_validate(card)
 
 
-DEMO_EMAIL = os.environ.get("DEMO_EMAIL", "demo@kanban.app")
-DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "password123")
+@app.post("/api/auth/sign-up", response_model=UserRead, status_code=201)
+def sign_up(response: Response, payload: SignUpRequest = Body(...), session: Session = Depends(get_session)):
+    email = payload.email.strip().lower()
+
+    existing = session.exec(select(User).where(User.email == email)).first()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+
+    user = User(email=email, hashed_password=auth.hash_password(payload.password))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    create_default_board(session, owner_id=user.id)
+
+    set_auth_cookie(response, user.id)
+    return user
 
 
-@app.post("/api/auth/sign-in", response_model=SignInResponse)
-def sign_in(payload: SignInRequest = Body(...)):
-    if payload.email != DEMO_EMAIL or payload.password != DEMO_PASSWORD:
+@app.post("/api/auth/sign-in", response_model=UserRead)
+def sign_in(response: Response, payload: SignInRequest = Body(...), session: Session = Depends(get_session)):
+    email = payload.email.strip().lower()
+
+    user = session.exec(select(User).where(User.email == email)).first()
+    if user is None or not auth.verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    return {"status": "ok", "email": payload.email}
+    set_auth_cookie(response, user.id)
+    return user
+
+
+@app.post("/api/auth/sign-out")
+def sign_out(response: Response):
+    response.delete_cookie(auth.COOKIE_NAME, path="/")
+    return {"status": "ok"}
+
+
+@app.get("/api/auth/me", response_model=UserRead)
+def get_me(user: User = Depends(get_current_user)):
+    return user
+
 
 @app.get("/", response_class=HTMLResponse)
 def home():
