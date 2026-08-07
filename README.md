@@ -1,6 +1,6 @@
 # Project Management MVP
 
-A single-board Kanban project management app: rename columns, add and delete cards, and drag cards between columns.
+A Kanban project management app: sign up for an account, create multiple boards, add/rename/delete/reorder columns, add/edit/delete cards, and drag cards between columns.
 
 ## Technologies
 
@@ -29,14 +29,19 @@ scripts/stop.ps1    # Windows
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8000
 
-## Demo sign-in
+## Sign-in
 
-The app uses a fake sign-in (no real authentication). Default demo credentials:
+The app has real user accounts (hashed passwords, session cookie). Sign up for your own account at `/sign-up`.
+
+A demo account is also seeded on backend startup for convenience:
 
 - Email: `demo@kanban.app`
 - Password: `password123`
 
-These can be overridden with the `DEMO_EMAIL`/`DEMO_PASSWORD` (backend) and `NEXT_PUBLIC_DEMO_EMAIL`/`NEXT_PUBLIC_DEMO_PASSWORD` (frontend) environment variables — see `compose.yaml`.
+The demo credentials can be overridden with the `DEMO_EMAIL`/`DEMO_PASSWORD` environment variables. Other backend environment variables — see `compose.yaml`:
+
+- `JWT_SECRET` — signs the session cookie; set a real secret outside local dev.
+- `COOKIE_SECURE` — `false` for local http, must be `true` behind https.
 
 ## Tests
 

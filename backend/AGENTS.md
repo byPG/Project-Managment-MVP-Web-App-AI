@@ -2,25 +2,28 @@
 
 ## Business requirements
 
-Build an MVP of a modern Kanban-style project management web application.
+Build a modern Kanban-style project management web application.
+
+This started as a single-board MVP (see `docs/PLAN.md` Parts 1-10) and was later, explicitly, expanded to support real user accounts and multiple personal boards per user (`docs/PLAN.md` Parts 11-19). The requirements below describe the current, expanded scope; where anything here disagrees with an older doc or comment, this file wins.
 
 The application must provide:
 
-- One Kanban board only.
-- Exactly five fixed columns.
-- The ability to rename every column.
-- The columns cannot be added or deleted.
+- Real user accounts: sign up, sign in, sign out, with a persisted session.
+- Each user has their own private set of boards - not shared, not visible to other users.
+- Users can create, list, rename, and delete their own boards.
+- Each new user's first board is seeded with five default columns and dummy cards; boards created afterward get five empty columns and no dummy cards.
+- Columns can be renamed.
+- Columns can be added, deleted, and reordered within a board.
 - Cards containing only:
   - a title
   - a details field
 - The ability to add a new card to a selected column.
+- The ability to edit an existing card's title and details.
 - The ability to delete an existing card.
 - Drag-and-drop functionality for moving cards between columns.
 - Moving a card to the end of the destination column is acceptable.
 - Reordering cards within the same column is not required.
-- Dummy board data displayed when the application is started for the first time.
 - Data persistence through the backend and database.
-- A simple fake user sign-in experience.
 - A polished, modern, responsive, and professional user interface.
 
 The project must include:
@@ -32,25 +35,21 @@ The project must include:
 - start and stop scripts
 - automated tests
 
-The main priority is a reliable and visually polished MVP with a deliberately small feature set.
+The main priority is a reliable and visually polished application with a deliberately constrained feature set - the expansion to multi-user/multi-board was a specific, approved scope change, not an invitation to keep adding features.
 
 ## Limitations
 
-Do not add functionality outside the defined MVP scope.
+Do not add functionality outside the scope defined above.
 
 The application must not include:
 
-- multiple boards
-- real user registration
-- production authentication
+- board sharing, collaborators, or any multi-user access to one board
+- teams, workspaces, or organizations
+- roles or permissions beyond a board's single owner
+- refresh tokens or multi-device/multi-session management
 - password recovery
 - email verification
 - social sign-in
-- roles and permissions
-- multiple user accounts
-- column creation
-- column deletion
-- card editing after creation
 - search
 - filtering
 - archiving
@@ -78,9 +77,7 @@ The application must not include:
 
 Do not introduce additional features without an explicit request.
 
-Do not create abstractions, services, endpoints, database tables, or infrastructure for functionality that is not required by the current MVP.
-
-The fake sign-in experience must not be presented as production-ready authentication.
+Do not create abstractions, services, endpoints, database tables, or infrastructure for functionality that is not required by the current scope.
 
 ## Technical decisions
 
@@ -124,9 +121,11 @@ Requirements:
 - Do not use Tailwind CSS.
 - Do not use a UI component framework.
 - Do not use Redux, Zustand, MobX, or another global state management library.
-- Use standard React state and API calls.
+- Use standard React state and API calls; React context is acceptable for cross-cutting concerns like the current-user/auth state (it is not one of the banned global state libraries).
 - Use `lucide-react` when icons are required.
 - Do not use emojis as interface icons.
+- Routes: `/sign-in`, `/sign-up`, `/boards` (list), `/boards/[boardId]` (detail). The board id lives in the route, not in client-side reducer state.
+- `frontend/package.json` pins a Next.js version newer than most AI training data (breaking API/convention changes are possible release to release). Before writing routing code, check `frontend/node_modules/next/dist/docs/` for the version actually installed rather than assuming prior knowledge still applies - e.g. `middleware.ts` was renamed to `proxy.ts` in Next 16.
 
 ### Backend
 
@@ -147,43 +146,50 @@ Requirements:
 
 The backend must provide the minimum API needed for:
 
-- fake sign-in
-- loading the board
-- renaming a column
-- creating a card
-- deleting a card
+- sign-up, sign-in, sign-out, and reading the current user
+- listing, creating, renaming, and deleting a user's own boards
+- loading a board (columns and cards)
+- renaming, creating, deleting, and reordering columns
+- creating, editing, and deleting a card
 - moving a card between columns
 
-Suggested endpoints:
+Current endpoints:
 
 ```text
 GET    /api/health
+POST   /api/auth/sign-up
 POST   /api/auth/sign-in
-GET    /api/board
+POST   /api/auth/sign-out
+GET    /api/auth/me
+GET    /api/boards
+POST   /api/boards
+GET    /api/boards/{board_id}
+PATCH  /api/boards/{board_id}
+DELETE /api/boards/{board_id}
+POST   /api/boards/{board_id}/columns
+PATCH  /api/boards/{board_id}/columns/reorder
 PATCH  /api/columns/{column_id}
+DELETE /api/columns/{column_id}
 POST   /api/columns/{column_id}/cards
+PATCH  /api/cards/{card_id}
 DELETE /api/cards/{card_id}
 PATCH  /api/cards/{card_id}/move
 ```
 
-Endpoint names may be adjusted when necessary, but the API must remain small and consistent.
+Endpoint names may be adjusted when necessary, but the API must remain small and consistent. Every board/column/card route is scoped to the authenticated user; a board/column/card owned by someone else returns 404 (not 403), so a guessed id can't be distinguished from one that doesn't exist.
 
-### Fake sign-in experience
+### Authentication
 
-Create a simple fake sign-in experience.
+Real accounts, not a fake sign-in:
 
-The simplest acceptable implementation is:
-
-- display a sign-in page before the board
-- provide predefined demo credentials
-- send the credentials to the FastAPI backend
-- return a predefined demo user after successful validation
-- store the signed-in state only in frontend memory
-- do not create access tokens, refresh tokens, sessions, cookies, or production authentication logic
-
-Use environment variables for the predefined demo credentials where practical.
-
-The fake sign-in state may reset when the page is refreshed.
+- `POST /api/auth/sign-up` hashes the password (bcrypt) and creates the user, seeding their first board (five default columns, dummy cards).
+- `POST /api/auth/sign-in` verifies the password and issues a session.
+- Sessions are a JWT (PyJWT, HS256) delivered as an httpOnly cookie (`samesite=lax`, `secure` from the `COOKIE_SECURE` env var) - never returned in the response body, never stored in `localStorage`.
+- `POST /api/auth/sign-out` clears the cookie.
+- `GET /api/auth/me` returns the current user or 401.
+- No password recovery, email verification, social sign-in, or refresh-token/multi-device session management.
+- The frontend must send `credentials: "include"` on every request so the cookie round-trips; the backend's CORS config needs `allow_credentials=True` and an explicit (non-wildcard) origin list to match.
+- Auth is a client-side gate only (check `/api/auth/me` on load, redirect if anonymous) - no Next.js server components or Proxy read the session, since the cookie is set by the FastAPI origin, not by Next.js itself.
 
 ### Database
 
@@ -193,9 +199,17 @@ Store the SQLite database file in a Docker volume so board data persists when co
 
 The minimum database models are:
 
+#### User
+
+- `id`
+- `email` (unique)
+- `hashed_password`
+- `created_at`
+
 #### Board
 
 - `id`
+- `owner_id` (FK to `user.id`)
 - `name`
 
 #### Column
@@ -213,17 +227,9 @@ The minimum database models are:
 - `details`
 - `position`
 
-A database table for users is not required because the sign-in experience is intentionally fake.
+Schema changes ship as Alembic migrations (`backend/migrations/`), not by dropping the SQLite file. `SQLModel.metadata.create_all` is test-only (used against an in-memory DB in `conftest.py` fixtures); it is not how the real database gets its schema. When generating a migration by hand, remember `sqlmodel.sql.sqltypes.AutoString()` needs `import sqlmodel` in the migration file.
 
-The database must contain:
-
-- exactly one board
-- exactly five initial columns
-- initial dummy cards
-
-Seed the database automatically when it is empty.
-
-Do not create endpoints for adding or deleting boards or columns.
+Each new user's first board is seeded automatically on sign-up with five default columns and dummy cards. Boards created afterward (`POST /api/boards`) get five default columns and no dummy cards - dummy data is only for a brand-new user's first-run experience, not every board.
 
 ### Drag and drop
 
@@ -326,19 +332,17 @@ Use:
 Tests must cover the most important behaviour:
 
 - backend health check
-- fake sign-in
-- loading the seeded board
-- rendering exactly five columns
-- rendering initial dummy cards
-- renaming a column
-- preventing an empty column name
-- adding a card
-- preventing a card without a title
+- sign-up, sign-in, sign-out, and reading the current user
+- creating, listing, renaming, and deleting a board
+- loading a board, rendering its columns and cards
+- renaming, creating, deleting, and reordering columns
+- adding a card, preventing a card without a title
+- editing a card
 - deleting a card
-- moving a card between columns
-- preserving card data after a move
+- moving a card between columns, preserving card data after a move
+- cross-user isolation: a user cannot read, edit, or delete another user's board, column, or card (404, not 403), and gets 401 with no session at all
 
-Add at least one Playwright test covering the main user flow.
+Add at least one Playwright test covering the main user flow (sign up through to a working board). Playwright specs should sign up their own fresh user rather than relying on shared demo credentials or seeded ids, so tests don't depend on run order or leftover data from a previous run.
 
 Do not pursue 100% test coverage.
 

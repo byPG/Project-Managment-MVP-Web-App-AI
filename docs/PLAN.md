@@ -16,6 +16,8 @@ The application will use:
 
 Do not skip a part unless all of its tasks and success criteria are already complete.
 
+Parts 1-10 delivered the frozen-scope single-board MVP described above. Parts 11-19 deliver a later, explicitly user-approved multi-user, multi-board expansion (real accounts, personal boards, custom columns, card editing); see the updated `backend/AGENTS.md` for the current business requirements and limitations, which supersede the single-board scope wherever the two disagree.
+
 ## Part 1: Plan
 
 ### Tasks
@@ -799,6 +801,174 @@ Include only:
 - All limitations have been respected.
 - The application is ready for review.
 
+## Part 11: Backend foundation for the expansion
+
+Convert the backend to `Depends`-based session injection and Alembic migrations, removing the import-time engine/schema/seed side effect and the shared-mutable-state test setup that Parts 12+ would not scale to.
+
+### Tasks
+
+- Convert `get_session` to a `Depends`-based generator; convert every route to `session: Session = Depends(get_session)`.
+- Replace the import-time `engine = create_db_and_tables()` with lazy `engine = get_engine()`; move seeding into a FastAPI `lifespan` hook.
+- Add Alembic: `alembic.ini`, `migrations/env.py` (`render_as_batch=True` for SQLite), `migrations/script.py.mako` (with `import sqlmodel`), `migrations/versions/0001_baseline.py` mirroring the existing schema exactly.
+- Update `backend/Dockerfile`'s `CMD` to run `alembic upgrade head` before `uvicorn`.
+- Add `backend/conftest.py`: per-test in-memory engine/session/client fixtures via `app.dependency_overrides`; delete the import-order `DATABASE_URL` hack.
+- Split `test_main.py` into `test_health.py` / `test_columns.py` / `test_cards.py`, parameterized off a `seeded_board` fixture instead of hardcoded ids.
+- Add `test_migrations.py`: smoke-test `alembic upgrade head` against a temp SQLite file.
+
+### Tests
+
+- `pytest` green with per-test isolated fixtures (no more import-order dependency).
+- `alembic upgrade head` on an empty file produces the current schema; verified against both a fresh volume and a pre-Alembic volume (caught and fixed a stale-partial-migration issue from SQLite's non-transactional DDL during that check).
+
+### Success criteria
+
+- Backend boots via `alembic upgrade head && uvicorn` in Docker and serves the seeded board unchanged.
+- No behavior change visible to the frontend.
+
+## Part 12: Users and real authentication
+
+Replace the fake, tokenless sign-in with real accounts: bcrypt password hashing, a `User` table, and a JWT issued as an httpOnly cookie.
+
+### Tasks
+
+- Add `User` model (`id`, `email` unique, `hashed_password`, `created_at`) and `Board.owner_id` FK; migration `0002` creates `user`, adds `board.owner_id`, and backfills existing boards onto a demo user so an existing deployment isn't orphaned.
+- New `backend/auth.py`: `hash_password`/`verify_password` (bcrypt, `BCRYPT_ROUNDS` env-configurable), `create_access_token`/`decode_access_token` (PyJWT, HS256), cookie constants.
+- Routes: `POST /api/auth/sign-up` (hashes password, creates the user's first default board, sets cookie, 201), `POST /api/auth/sign-in`, `POST /api/auth/sign-out`, `GET /api/auth/me`.
+- `get_current_user` dependency added but not yet enforced on board/column/card routes (kept the then-current frontend working).
+- CORS gets `allow_credentials=True`; `compose.yaml` gets `JWT_SECRET`/`COOKIE_SECURE`.
+- Demo credentials (`DEMO_EMAIL`/`DEMO_PASSWORD`) still work: a demo user is now seeded for real via the lifespan hook instead of being a hardcoded env-var comparison.
+
+### Tests
+
+- `test_auth.py`: signup (cookie is httpOnly, creates 5 columns + 8 cards), duplicate email → 409, invalid email/short password → 422, sign-in success/failure, `/api/auth/me` 401/200, sign-out clears the cookie.
+
+### Success criteria
+
+- Verified live via Docker against both a fresh volume and the pre-existing volume from Part 11 (the latter exercised the migration's backfill path and caught a real bug: `inserted_primary_key` is unreliable for a bare `sa.table()` insert against SQLite).
+
+## Part 13: Frontend authentication
+
+Replace the inline fake sign-in gate in `page.tsx` with real `/sign-in` and `/sign-up` routes wired to Part 12's endpoints, and a cookie-based session the rest of the app can read.
+
+### Tasks
+
+- `api.ts`: `credentials: "include"` on every request, an `ApiError` class carrying HTTP status, `signUp`/`signIn`/`signOut`/`fetchCurrentUser`.
+- New `sign-in/page.tsx`, `sign-up/page.tsx`, shared `AuthForm.tsx`.
+- `AuthProvider`/`useAuth()` context mounted at the root layout, checking `/api/auth/me` on load.
+- `page.tsx` becomes a thin redirect based on auth status.
+- Remove the demo-credential hint UI and `NEXT_PUBLIC_DEMO_PASSWORD` from `compose.yaml`.
+- Add a `next/navigation` mock to `vitest.setup.ts` (needed once components call `useRouter`).
+
+### Tests
+
+- New sign-in/sign-up page tests; `page.test.tsx` rewritten around the redirect behavior instead of the old inline gate.
+
+### Success criteria
+
+- Verified live: CORS returns `access-control-allow-credentials: true` and a specific (non-wildcard) `allow-origin`, and the session cookie round-trips end to end.
+- Documented behavior change: sign-in now persists across a refresh (7-day cookie) instead of resetting, since it's a real account now.
+
+## Part 14: Multi-board backend and ownership enforcement
+
+### Tasks
+
+- New routes behind `Depends(get_current_user)`: `GET/POST /api/boards`, `GET/PATCH/DELETE /api/boards/{board_id}`.
+- `get_owned_board`/`get_owned_column`/`get_owned_card` helpers added to every column/card route; a board/column/card owned by someone else 404s (not 403), so a guessed id can't be distinguished from one that doesn't exist. `move_card` also rejects moving into a column on a different one of the caller's *own* boards.
+- `GET /api/board` (singular) kept as a deprecated, user-scoped shim so the Part 13 frontend kept working; removed in Part 18.
+- `db.create_board()` split out from `create_default_board()`: boards created after signup get five empty columns, no dummy cards (those are only for a brand-new user's very first board).
+
+### Tests
+
+- `test_boards.py`, `test_ownership.py`: CRUD, cascade delete, cross-user 404s, no-cookie 401s.
+- Verified live with two real signed-up users: second board created for user A, user B gets 404 on user A's board id and sees only their own board in their list.
+
+### Success criteria
+
+- Ownership enforced on every existing and new board/column/card route.
+
+## Part 15: Frontend multi-board routing
+
+Dismantle the single-page board UI into real routes.
+
+### Tasks
+
+- `boards/layout.tsx` (auth gate, shared header with sign-out), `boards/page.tsx` (list/create/delete via new `BoardList.tsx`), `boards/[boardId]/page.tsx` (the old board logic, keyed by `useParams`, hitting `/api/boards/{boardId}`).
+- `BoardList.tsx` is props-driven like `Board.tsx`, so it's fetch-mock-free to test.
+- A foreign or nonexistent board id shows "Board not found" instead of an error, using `ApiError`'s status from Part 13.
+- `BoardState`/`boardReducer` unchanged: the board id lives in the route now, not in state, so there's no second source of truth.
+
+### Tests
+
+- New `BoardList.test.tsx`, `boards/page.test.tsx`, `boards/[boardId]/page.test.tsx`.
+
+### Success criteria
+
+- Verified end to end against the real backend: sign up → list boards → fetch a board by id, confirming the response shape matches `normalizeBoardResponse`.
+
+## Part 16: Column CRUD and card editing (backend)
+
+### Tasks
+
+- `POST /api/boards/{board_id}/columns` (appends), `DELETE /api/columns/{column_id}` (cascades its cards, resequences siblings), `PATCH /api/boards/{board_id}/columns/reorder` (full `column_ids` list, validated as an exact permutation via a set-equality-plus-length check), `PATCH /api/cards/{card_id}` (title/details, same validation as add-card).
+- No schema change needed.
+
+### Tests
+
+- Create/delete/reorder/edit, each 404s for a foreign user, 401s with no cookie.
+- Verified live: add column, edit card, reorder (including confirming the reorder endpoint rejects an incomplete id set), delete column with resequencing.
+
+### Success criteria
+
+- All new routes go through the existing ownership helpers.
+
+## Part 17: Column CRUD and card editing UI (frontend)
+
+### Tasks
+
+- `boardReducer`/`types.ts` gain `editCard`/`addColumn`/`deleteColumn`/`reorderColumns` actions (same server-authoritative convention as the existing ones).
+- `AddCardModal.tsx` generalized into `CardModal.tsx` with an `add`/`edit` mode (discriminated union props); existing add-mode test ids preserved; edit mode's modal renders as a DOM sibling of the sortable card, not nested inside it, matching `Column.tsx`'s existing modal placement.
+- `Card.tsx` gets an edit button next to delete (same `onPointerDown` stop-propagation guard).
+- `Column.tsx` gets a delete-column button (no confirmation) and move-left/move-right buttons.
+- `Board.tsx` computes the swapped column-id order (`resolveColumnMove`, new in `boardReducer.ts`) and a trailing "add column" inline form. Column reordering is buttons, not drag-and-drop, to avoid touching the board's already-subtle 3-tier collision detection.
+
+### Tests
+
+- Extended `Board.test.tsx` and `boardReducer.test.ts` for every new interaction.
+- One correctness fix along the way: `CardModal` originally re-synced its form fields in a `useEffect` keyed on `isOpen`, which trips `react-hooks/set-state-in-effect`. Rewritten to adjust state during render instead, per React's own guidance for this exact pattern.
+
+### Success criteria
+
+- Verified live through the exact request shapes the frontend sends.
+
+## Part 18: Test isolation, e2e rework, cleanup
+
+### Tasks
+
+- `e2e/helpers.ts`: `signUpFreshUser`/`createBoard`/`openBoard`. Every spec now signs up a brand-new user instead of relying on shared demo credentials and hardcoded seed ids, removing the old suite's "one persistent, unisolated database" fragility.
+- New specs: `auth.spec.ts`, `boards.spec.ts`, `isolation.spec.ts` (a second user can't see or open the first user's board or board URL). `kanban.spec.ts` rewritten the same way, plus coverage for card editing and column add/move/delete; `dragCardTo` kept verbatim.
+- Removed the deprecated `GET /api/board` shim and the leftover `GET /` hello-world HTML page from the Part 2 scaffolding milestone.
+
+### Tests
+
+- Full gate: `pytest` (48/48), `npm run lint`, `npm test` (44/44), `npm run build`, `npm run test:e2e` (16/16), `docker compose build && docker compose up`, with the removed route confirmed gone (404) via `/openapi.json`.
+
+### Success criteria
+
+- e2e suite passes with zero dependency on run order or prior runs' leftover data.
+
+## Part 19: Documentation sync
+
+### Tasks
+
+- Rewrote `backend/AGENTS.md`: business requirements and "do not build" list updated for the new scope (multi-board, real accounts, card editing, column CRUD now in scope; sharing/collaboration/roles beyond owner still explicitly out). Replaced the "Fake sign-in experience" section with "Authentication". Removed the stale "a database table for users is not required" line.
+- Appended this record (Parts 11-19) to `docs/PLAN.md`.
+- Updated `CLAUDE.md`'s Project/Architecture sections for the new route map, cookie auth model, Alembic, and `Depends`-based sessions.
+- Updated `README.md`/`compose.yaml` for the new env vars and sign-up flow.
+
+### Success criteria
+
+- No document still tells a future session to "fix" the app back to the frozen single-board scope.
+
 ## Progress checklist
 
 - [x] Part 1: Plan
@@ -811,6 +981,15 @@ Include only:
 - [x] Part 8: Drag and drop
 - [x] Part 9: UI, responsiveness and accessibility
 - [x] Part 10: Testing, final verification and delivery
+- [x] Part 11: Backend foundation for the expansion
+- [x] Part 12: Users and real authentication
+- [x] Part 13: Frontend authentication
+- [x] Part 14: Multi-board backend and ownership enforcement
+- [x] Part 15: Frontend multi-board routing
+- [x] Part 16: Column CRUD and card editing (backend)
+- [x] Part 17: Column CRUD and card editing UI (frontend)
+- [x] Part 18: Test isolation, e2e rework, cleanup
+- [x] Part 19: Documentation sync
 
 Do not mark a part as complete until all of its tasks and success criteria have been verified.
 
