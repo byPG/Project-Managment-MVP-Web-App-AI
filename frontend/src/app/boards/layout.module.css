@@ -1,0 +1,63 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-main);
+}
+
+.loading {
+  margin: 2rem auto;
+  color: var(--text-secondary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(23, 26, 33, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.userEmail {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.signOutButton {
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease;
+}
+
+.signOutButton:hover,
+.signOutButton:focus-visible {
+  border-color: var(--primary-blue);
+  background: rgba(79, 140, 255, 0.12);
+}
+
+.content {
+  flex: 1;
+}

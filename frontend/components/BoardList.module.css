@@ -1,0 +1,122 @@
+.wrapper {
+  margin: 0 auto;
+  width: min(100%, 1200px);
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.createForm {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.inputLabel {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.createRow {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.inputField {
+  flex: 1;
+  min-width: 220px;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.createButton {
+  padding: 0.85rem 1.25rem;
+  border-radius: 999px;
+  background: var(--primary-blue);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+
+.createButton:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.errorMessage {
+  margin: 0;
+  color: var(--danger-coral);
+  font-size: 0.9rem;
+}
+
+.emptyState {
+  color: var(--text-secondary);
+}
+
+.boardGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.boardCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition:
+    border-color 200ms ease,
+    transform 200ms ease;
+}
+
+.boardCard:hover {
+  border-color: var(--primary-blue);
+  transform: translateY(-1px);
+}
+
+.boardLink {
+  flex: 1;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deleteButton {
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger-coral);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease;
+}
+
+.deleteButton:hover,
+.deleteButton:focus-visible {
+  border-color: var(--danger-coral);
+  background: rgba(248, 113, 113, 0.12);
+}

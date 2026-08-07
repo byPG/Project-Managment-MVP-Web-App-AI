@@ -1,0 +1,21 @@
+.wrapper {
+  margin: 0 auto;
+  width: min(100%, 1200px);
+  padding: 1.5rem;
+}
+
+.heading {
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.loading {
+  color: var(--text-secondary);
+}
+
+.errorMessage {
+  margin: 0 0 1rem;
+  color: var(--danger-coral);
+}

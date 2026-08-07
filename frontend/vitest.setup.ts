@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 import { afterEach, vi } from "vitest";
 
-const { routerMock } = vi.hoisted(() => ({
+const { routerMock, useParamsMock } = vi.hoisted(() => ({
   routerMock: {
     push: vi.fn(),
     replace: vi.fn(),
@@ -10,17 +10,19 @@ const { routerMock } = vi.hoisted(() => ({
     forward: vi.fn(),
     refresh: vi.fn(),
   },
+  useParamsMock: vi.fn(() => ({})),
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMock,
   usePathname: () => "/",
-  useParams: () => ({}),
+  useParams: useParamsMock,
   useSearchParams: () => new URLSearchParams(),
 }));
 
 afterEach(() => {
   vi.clearAllMocks();
+  useParamsMock.mockReturnValue({});
 });
 
-export { routerMock };
+export { routerMock, useParamsMock };

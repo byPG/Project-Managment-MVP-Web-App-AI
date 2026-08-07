@@ -15,6 +15,11 @@ export type BoardState = {
   columns: Column[];
 };
 
+export type BoardSummary = {
+  id: string;
+  name: string;
+};
+
 export type AddCardPayload = {
   id?: string;
   title: string;

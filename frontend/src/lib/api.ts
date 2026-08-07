@@ -20,6 +20,11 @@ type ApiBoard = {
   columns: ApiColumn[];
 };
 
+export type ApiBoardSummary = {
+  id: number;
+  name: string;
+};
+
 export class ApiError extends Error {
   status: number;
 
@@ -95,8 +100,32 @@ export function normalizeBoardResponse(board: ApiBoard): BoardState {
   return { cards, columns };
 }
 
-export async function loadBoard(apiBase: string): Promise<ApiBoard> {
-  return fetchJson(`${apiBase}/api/board`);
+export async function listBoards(apiBase: string): Promise<ApiBoardSummary[]> {
+  return fetchJson(`${apiBase}/api/boards`);
+}
+
+export async function createBoard(apiBase: string, name: string): Promise<ApiBoardSummary> {
+  return fetchJson(`${apiBase}/api/boards`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function renameBoard(apiBase: string, boardId: string, name: string): Promise<ApiBoardSummary> {
+  return fetchJson(`${apiBase}/api/boards/${boardId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteBoard(apiBase: string, boardId: string): Promise<void> {
+  await fetchJson(`${apiBase}/api/boards/${boardId}`, { method: "DELETE" });
+}
+
+export async function loadBoard(apiBase: string, boardId: string): Promise<ApiBoard> {
+  return fetchJson(`${apiBase}/api/boards/${boardId}`);
 }
 
 export async function renameColumn(apiBase: string, columnId: string, title: string) {
