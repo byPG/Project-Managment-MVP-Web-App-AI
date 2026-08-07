@@ -1,4 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import { openBoard, signUpFreshUser } from "./helpers";
 
 // dnd-kit's PointerSensor only starts a drag once the pointer has moved past
 // an activation distance threshold. A single teleporting `mouse.move` to the
@@ -31,50 +32,45 @@ async function dragCardTo(page: Page, card: Locator, target: Locator) {
   await page.mouse.up();
 }
 
-test.describe("Kanban Board MVP", () => {
+test.describe("Kanban board", () => {
+  // Every test signs up a fresh user and uses that user's own default board
+  // (seeded with 5 columns + 8 dummy cards on signup), so column/card ids
+  // are never hardcoded - each run gets its own isolated, real database rows
+  // instead of sharing one persistent seed.
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.getByLabel(/email/i).fill("demo@kanban.app");
-    await page.getByLabel(/password/i).fill("password123");
-    await page.getByRole("button", { name: /sign in/i }).click();
-    await expect(page.getByRole("heading", { name: /kanban board/i })).toBeVisible();
+    await signUpFreshUser(page);
+    await openBoard(page, "My First Board");
   });
 
-  test("should render five columns with initial dummy cards", async ({ page }) => {
-    const board = page.getByTestId("kanban-board");
-    await expect(board).toBeVisible();
+  test("renders five columns with seeded dummy cards", async ({ page }) => {
+    await expect(page.getByTestId("kanban-board")).toBeVisible();
 
-    for (const columnId of [1, 2, 3, 4, 5]) {
-      await expect(page.getByTestId(`column-${columnId}`)).toBeVisible();
-    }
+    const columnTitles = page.getByTestId(/^column-title-\d+$/);
+    await expect(columnTitles).toHaveCount(5);
+    await expect(columnTitles.nth(0)).toContainText("Backlog");
+    await expect(columnTitles.nth(1)).toContainText("To Do");
+    await expect(columnTitles.nth(2)).toContainText("In Progress");
+    await expect(columnTitles.nth(3)).toContainText("Review");
+    await expect(columnTitles.nth(4)).toContainText("Done");
 
-    await expect(page.getByTestId("column-title-1")).toContainText("Backlog");
-    await expect(page.getByTestId("column-title-2")).toContainText("To Do");
-    await expect(page.getByTestId("column-title-3")).toContainText("In Progress");
-    await expect(page.getByTestId("column-title-4")).toContainText("Review");
-    await expect(page.getByTestId("column-title-5")).toContainText("Done");
-
-    // Dummy card initial check
-    await expect(page.getByTestId("card-1")).toBeVisible();
     await expect(page.getByText("Research competitors")).toBeVisible();
   });
 
-  test("should allow renaming a column", async ({ page }) => {
-    const titleBtn = page.getByTestId("column-title-1");
+  test("allows renaming a column", async ({ page }) => {
+    const titleBtn = page.getByTestId(/^column-title-\d+$/).first();
+    await expect(titleBtn).toContainText("Backlog");
     await titleBtn.click();
 
-    const titleInput = page.getByTestId("column-title-input-1");
+    const titleInput = page.getByTestId(/^column-title-input-\d+$/);
     await expect(titleInput).toBeVisible();
-
     await titleInput.fill("Ideas & Backlog");
     await titleInput.press("Enter");
 
-    await expect(page.getByTestId("column-title-1")).toContainText("Ideas & Backlog");
+    await expect(page.getByTestId(/^column-title-\d+$/).first()).toContainText("Ideas & Backlog");
   });
 
-  test("should allow adding a new card to a selected column", async ({ page }) => {
-    const addCardBtn = page.getByTestId("add-card-button-1");
-    await addCardBtn.click();
+  test("allows adding a new card to a column", async ({ page }) => {
+    await page.getByTestId(/^add-card-button-\d+$/).first().click();
 
     const modal = page.getByTestId("add-card-modal");
     await expect(modal).toBeVisible();
@@ -84,68 +80,61 @@ test.describe("Kanban Board MVP", () => {
     await page.getByTestId("submit-card-button").click();
 
     await expect(modal).not.toBeVisible();
-
-    // Scope to the specific card instead of matching by text globally: a
-    // previous run against this shared database may have left a card with
-    // identical text behind, which would make a page-wide text match
-    // ambiguous. The new card is appended to the end of the column.
-    const newCard = page
-      .locator('[data-testid^="card-"]', { hasText: "Automated Test Task" })
-      .last();
-    await expect(newCard).toBeVisible();
-    await expect(newCard.getByText("Details for automated test card")).toBeVisible();
-
-    // Clean up so the suite doesn't accumulate duplicate cards across runs.
-    await newCard.hover();
-    await newCard.getByRole("button", { name: /delete card/i }).click();
-    await expect(newCard).not.toBeVisible();
+    await expect(page.getByText("Automated Test Task")).toBeVisible();
+    await expect(page.getByText("Details for automated test card")).toBeVisible();
   });
 
-  test("should allow deleting an existing card", async ({ page }) => {
-    // Create a disposable card rather than deleting seed data, since later
-    // tests in this suite depend on the seeded cards still being present.
-    await page.getByTestId("add-card-button-1").click();
-    const modal = page.getByTestId("add-card-modal");
+  test("allows editing an existing card", async ({ page }) => {
+    const card = page.locator('[data-testid^="card-"]', { hasText: "Research competitors" });
+    await card.hover();
+    await card.getByRole("button", { name: /edit card/i }).click();
+
+    const modal = page.getByTestId("edit-card-modal");
     await expect(modal).toBeVisible();
-    await page.getByTestId("card-title-input").fill("Card To Delete");
-    await page.getByTestId("card-details-input").fill("Temporary card for the delete test");
+    await expect(page.getByTestId("card-title-input")).toHaveValue("Research competitors");
+
+    await page.getByTestId("card-title-input").fill("Research competitors thoroughly");
     await page.getByTestId("submit-card-button").click();
+
     await expect(modal).not.toBeVisible();
+    await expect(page.getByText("Research competitors thoroughly")).toBeVisible();
+  });
+
+  test("allows deleting a card", async ({ page }) => {
+    await page.getByTestId(/^add-card-button-\d+$/).first().click();
+    await page.getByTestId("card-title-input").fill("Card To Delete");
+    await page.getByTestId("submit-card-button").click();
 
     const card = page.locator('[data-testid^="card-"]', { hasText: "Card To Delete" });
     await expect(card).toBeVisible();
 
-    // Hover card to expose delete button
     await card.hover();
     await card.getByRole("button", { name: /delete card/i }).click();
 
     await expect(card).not.toBeVisible();
-    await expect(page.getByText("Card To Delete")).not.toBeVisible();
   });
 
-  test("should allow dragging and dropping a card to another column", async ({ page }) => {
-    const card = page.getByTestId("card-1");
-    const targetColumn = page.getByTestId("column-droppable-3");
+  test("allows dragging a card to another column", async ({ page }) => {
+    const card = page.getByTestId(/^card-\d+$/).first();
+    const targetColumn = page.getByTestId(/^column-droppable-\d+$/).nth(2); // In Progress
+
+    const cardTestId = await card.getAttribute("data-testid");
+    if (!cardTestId) {
+      throw new Error("Expected the dragged card to have a data-testid.");
+    }
 
     await dragCardTo(page, card, targetColumn);
 
-    // Verify target column contains card
-    await expect(targetColumn.getByTestId("card-1")).toBeVisible();
+    await expect(targetColumn.getByTestId(cardTestId)).toBeVisible();
   });
 
-  test("should allow dragging a card into a completely empty column", async ({ page }) => {
-    const emptyColumn = page.getByTestId("column-4");
-    const countBadge = page.getByTestId("column-count-4");
+  test("allows dragging a card into a fully emptied column", async ({ page }) => {
+    const emptyColumn = page.getByTestId(/^column-\d+$/).nth(3); // Review
+    const countBadge = page.getByTestId(/^column-count-\d+$/).nth(3);
     const cardsInColumn = emptyColumn.locator('[data-testid^="card-"]');
 
-    // `.count()` below reads the DOM synchronously and doesn't auto-wait, so
-    // make sure the board has actually finished its initial fetch first
-    // (the beforeEach only waits for the page heading, not the board data).
     await expect(countBadge).toBeVisible();
 
-    // Empty column 4 of whatever it currently holds. The suite runs against
-    // one persistent local database rather than a fresh one per run, so this
-    // must not assume a specific seed card (e.g. "card-7") is still there.
     while ((await cardsInColumn.count()) > 0) {
       const card = cardsInColumn.first();
       await card.hover();
@@ -154,8 +143,7 @@ test.describe("Kanban Board MVP", () => {
     }
     await expect(countBadge).toHaveText("0");
 
-    // Drag whichever card currently sits first on the board into column 4.
-    const cardToDrag = page.locator('[data-testid^="card-"]').first();
+    const cardToDrag = page.getByTestId(/^card-\d+$/).first();
     const cardTestId = await cardToDrag.getAttribute("data-testid");
     if (!cardTestId) {
       throw new Error("Expected at least one card on the board to drag.");
@@ -163,8 +151,30 @@ test.describe("Kanban Board MVP", () => {
 
     await dragCardTo(page, cardToDrag, emptyColumn);
 
-    // Verify empty column now contains the dragged card and count is 1
     await expect(emptyColumn.getByTestId(cardTestId)).toBeVisible();
     await expect(countBadge).toHaveText("1");
+  });
+
+  test("allows adding, reordering, and deleting a column", async ({ page }) => {
+    await page.getByTestId("add-column-button").click();
+    await page.getByTestId("add-column-input").fill("Blocked");
+    await page.getByTestId("add-column-submit").click();
+
+    const columnTitles = page.getByTestId(/^column-title-\d+$/);
+    await expect(columnTitles).toHaveCount(6);
+    await expect(columnTitles.nth(5)).toContainText("Blocked");
+
+    const newColumn = page.getByTestId(/^column-\d+$/).nth(5);
+    const newColumnId = await newColumn.getAttribute("data-testid");
+    if (!newColumnId) {
+      throw new Error("Expected the new column to have a data-testid.");
+    }
+    const columnNumber = newColumnId.replace("column-", "");
+
+    await page.getByTestId(`move-column-left-${columnNumber}`).click();
+    await expect(columnTitles.nth(4)).toContainText("Blocked");
+
+    await page.getByTestId(`delete-column-${columnNumber}`).click();
+    await expect(page.getByTestId(/^column-title-\d+$/)).toHaveCount(5);
   });
 });

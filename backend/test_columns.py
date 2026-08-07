@@ -1,5 +1,5 @@
 def test_get_board_returns_five_columns(client, seeded_board):
-    response = client.get("/api/board")
+    response = client.get(f"/api/boards/{seeded_board['board'].id}")
     assert response.status_code == 200
     data = response.json()
 
@@ -25,7 +25,7 @@ def test_rename_column_updates_name(client, seeded_board):
     assert response.status_code == 200
     assert response.json()["name"] == "Updated Backlog"
 
-    board_response = client.get("/api/board")
+    board_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     assert board_response.status_code == 200
     assert board_response.json()["columns"][0]["name"] == "Updated Backlog"
 
@@ -55,7 +55,7 @@ def test_add_card_to_column(client, seeded_board):
     assert card["details"] == "New details"
     assert card["position"] == 3
 
-    board_response = client.get("/api/board")
+    board_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     assert any(
         card["title"] == "New card"
         for column in board_response.json()["columns"]

@@ -20,7 +20,11 @@ def test_sign_up_creates_default_board_with_five_columns_and_cards(client):
         json={"email": "board-owner@example.com", "password": "password123"},
     )
 
-    board_response = client.get("/api/board")
+    boards_response = client.get("/api/boards")
+    assert boards_response.status_code == 200
+    board_id = boards_response.json()[0]["id"]
+
+    board_response = client.get(f"/api/boards/{board_id}")
     assert board_response.status_code == 200
     data = board_response.json()
 

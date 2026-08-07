@@ -1,5 +1,5 @@
 def test_update_card_edits_title_and_details(client, seeded_board):
-    source_response = client.get("/api/board")
+    source_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     card_id = source_response.json()["columns"][0]["cards"][0]["id"]
 
     response = client.patch(
@@ -11,14 +11,14 @@ def test_update_card_edits_title_and_details(client, seeded_board):
     assert body["title"] == "Updated title"
     assert body["details"] == "Updated details"
 
-    board_response = client.get("/api/board")
+    board_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     updated_card = board_response.json()["columns"][0]["cards"][0]
     assert updated_card["title"] == "Updated title"
     assert updated_card["details"] == "Updated details"
 
 
 def test_update_card_requires_title(client, seeded_board):
-    source_response = client.get("/api/board")
+    source_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     card_id = source_response.json()["columns"][0]["cards"][0]["id"]
 
     response = client.patch(
@@ -51,7 +51,7 @@ def test_delete_card_removes_card(client, seeded_board):
     assert delete_response.status_code == 200
     assert delete_response.json() == {"status": "ok"}
 
-    board_response = client.get("/api/board")
+    board_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     assert not any(
         card["id"] == card_id
         for column in board_response.json()["columns"]
@@ -62,7 +62,7 @@ def test_delete_card_removes_card(client, seeded_board):
 def test_move_card_between_columns(client, seeded_board):
     destination_column_id = seeded_board["columns"][1].id
 
-    source_response = client.get("/api/board")
+    source_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     source_card = source_response.json()["columns"][0]["cards"][0]
     source_card_id = source_card["id"]
 
@@ -73,7 +73,7 @@ def test_move_card_between_columns(client, seeded_board):
     assert move_response.status_code == 200
     assert move_response.json()["column_id"] == destination_column_id
 
-    board_response = client.get("/api/board")
+    board_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     dest_cards = board_response.json()["columns"][1]["cards"]
     assert any(card["id"] == source_card_id for card in dest_cards)
 
@@ -96,7 +96,7 @@ def test_move_nonexistent_card_returns_404(client, seeded_board):
 
 
 def test_move_card_to_invalid_column_returns_404(client, seeded_board):
-    source_response = client.get("/api/board")
+    source_response = client.get(f"/api/boards/{seeded_board['board'].id}")
     source_card = source_response.json()["columns"][0]["cards"][0]
     source_card_id = source_card["id"]
 
