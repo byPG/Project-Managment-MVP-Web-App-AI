@@ -119,3 +119,26 @@
   font-size: 0.95rem;
 }
 
+.formFooter {
+  margin: -1rem auto 2rem;
+  width: min(100%, 560px);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.formFooterLink {
+  color: var(--secondary-purple);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    filter 200ms ease,
+    text-decoration-color 200ms ease;
+}
+
+.formFooterLink:hover,
+.formFooterLink:focus-visible {
+  filter: brightness(1.25);
+  text-decoration: underline;
+}
+

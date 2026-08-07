@@ -40,12 +40,13 @@ export default function SignInPage() {
             <p className={styles.statusMessage}>{healthMessage}</p>
           </div>
         </div>
-        <p className={styles.subtitle}>
-          New here? <Link href="/sign-up">Create an account</Link>.
-        </p>
       </header>
 
       <AuthForm mode="sign-in" onSubmit={handleSignIn} />
+
+      <p className={styles.formFooter}>
+        New here? <Link href="/sign-up" className={styles.formFooterLink}>Create an account</Link>.
+      </p>
     </main>
   );
 }
