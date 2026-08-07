@@ -1,32 +1,55 @@
 "use client";
 
 import { useRef, useState } from "react";
-import styles from "./AddCardModal.module.css";
+import styles from "./CardModal.module.css";
 import type { BoardAction } from "@/lib/types";
 
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-type AddCardModalProps = {
-  columnId: string;
-  columnTitle: string;
-  isOpen: boolean;
-  onClose: () => void;
-  dispatch: React.Dispatch<BoardAction>;
-};
+type CardModalProps =
+  | {
+      mode: "add";
+      columnId: string;
+      columnTitle: string;
+      isOpen: boolean;
+      onClose: () => void;
+      dispatch: React.Dispatch<BoardAction>;
+    }
+  | {
+      mode: "edit";
+      cardId: string;
+      initialTitle: string;
+      initialDetails: string;
+      isOpen: boolean;
+      onClose: () => void;
+      dispatch: React.Dispatch<BoardAction>;
+    };
 
-export function AddCardModal({
-  columnId,
-  columnTitle,
-  isOpen,
-  onClose,
-  dispatch,
-}: AddCardModalProps) {
-  const [title, setTitle] = useState("");
-  const [details, setDetails] = useState("");
+export function CardModal(props: CardModalProps) {
+  const { mode, isOpen, onClose, dispatch } = props;
+  const startingTitle = mode === "edit" ? props.initialTitle : "";
+  const startingDetails = mode === "edit" ? props.initialDetails : "";
+
+  const [title, setTitle] = useState(startingTitle);
+  const [details, setDetails] = useState(startingDetails);
   const [error, setError] = useState("");
+  // Re-sync the form fields to the latest props whenever the modal
+  // transitions from closed to open, without an effect: adjusting state
+  // during render (rather than after commit) avoids an extra render pass.
+  // See https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      setTitle(startingTitle);
+      setDetails(startingDetails);
+      setError("");
+    }
+  }
   const dialogRef = useRef<HTMLDivElement>(null);
-  const titleId = `add-card-modal-title-${columnId}`;
+  const testId = mode === "add" ? "add-card-modal" : "edit-card-modal";
+  const titleId = `${testId}-title`;
 
   if (!isOpen) return null;
 
@@ -67,30 +90,31 @@ export function AddCardModal({
       return;
     }
 
-    dispatch({
-      type: "addCard",
-      columnId,
-      card: {
-        title: trimmedTitle,
-        details: details.trim(),
-      },
-    });
+    if (mode === "add") {
+      dispatch({
+        type: "addCard",
+        columnId: props.columnId,
+        card: { title: trimmedTitle, details: details.trim() },
+      });
+    } else {
+      dispatch({
+        type: "editCard",
+        payload: { cardId: props.cardId, title: trimmedTitle, details: details.trim() },
+      });
+    }
 
-    setTitle("");
-    setDetails("");
-    setError("");
-    onClose();
+    handleClose();
   }
 
   function handleClose() {
-    setTitle("");
-    setDetails("");
+    setTitle(startingTitle);
+    setDetails(startingDetails);
     setError("");
     onClose();
   }
 
   return (
-    <div className={styles.overlay} data-testid="add-card-modal" onClick={handleClose}>
+    <div className={styles.overlay} data-testid={testId} onClick={handleClose}>
       <div
         ref={dialogRef}
         role="dialog"
@@ -102,7 +126,13 @@ export function AddCardModal({
       >
         <div className={styles.header}>
           <h2 id={titleId} className={styles.title}>
-            Add Card to <span className={styles.titleAccent}>{columnTitle}</span>
+            {mode === "add" ? (
+              <>
+                Add Card to <span className={styles.titleAccent}>{props.columnTitle}</span>
+              </>
+            ) : (
+              "Edit Card"
+            )}
           </h2>
           <button
             type="button"
@@ -178,7 +208,7 @@ export function AddCardModal({
               data-testid="submit-card-button"
               className={styles.submitButton}
             >
-              Add Card
+              {mode === "add" ? "Add Card" : "Save Changes"}
             </button>
           </div>
         </form>

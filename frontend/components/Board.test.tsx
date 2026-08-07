@@ -98,4 +98,68 @@ describe("Board component", () => {
     expect(screen.getByTestId("add-card-modal")).toBeInTheDocument();
     expect(dispatch).not.toHaveBeenCalled();
   });
+
+  it("opens edit card modal prefilled and dispatches editCard on submit", () => {
+    const dispatch = vi.fn();
+    render(<Board state={dummyState} dispatch={dispatch} />);
+
+    fireEvent.click(screen.getByTestId("edit-card-card-1"));
+
+    expect(screen.getByTestId("edit-card-modal")).toBeInTheDocument();
+    expect(screen.getByTestId("card-title-input")).toHaveValue("First Card");
+    expect(screen.getByTestId("card-details-input")).toHaveValue("First Details");
+
+    fireEvent.change(screen.getByTestId("card-title-input"), {
+      target: { value: "Updated Card" },
+    });
+    fireEvent.click(screen.getByTestId("submit-card-button"));
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "editCard",
+      payload: { cardId: "card-1", title: "Updated Card", details: "First Details" },
+    });
+  });
+
+  it("dispatches addColumn when the add-column form is submitted", () => {
+    const dispatch = vi.fn();
+    render(<Board state={dummyState} dispatch={dispatch} />);
+
+    fireEvent.click(screen.getByTestId("add-column-button"));
+    fireEvent.change(screen.getByTestId("add-column-input"), {
+      target: { value: "Blocked" },
+    });
+    fireEvent.click(screen.getByTestId("add-column-submit"));
+
+    expect(dispatch).toHaveBeenCalledWith({ type: "addColumn", title: "Blocked" });
+  });
+
+  it("dispatches deleteColumn when a column's delete button is clicked", () => {
+    const dispatch = vi.fn();
+    render(<Board state={dummyState} dispatch={dispatch} />);
+
+    fireEvent.click(screen.getByTestId("delete-column-col-2"));
+
+    expect(dispatch).toHaveBeenCalledWith({ type: "deleteColumn", columnId: "col-2" });
+  });
+
+  it("disables move-left on the first column and move-right on the last", () => {
+    const dispatch = vi.fn();
+    render(<Board state={dummyState} dispatch={dispatch} />);
+
+    expect(screen.getByTestId("move-column-left-col-1")).toBeDisabled();
+    expect(screen.getByTestId("move-column-right-col-5")).toBeDisabled();
+    expect(screen.getByTestId("move-column-right-col-1")).not.toBeDisabled();
+  });
+
+  it("dispatches reorderColumns with the swapped order on move-right", () => {
+    const dispatch = vi.fn();
+    render(<Board state={dummyState} dispatch={dispatch} />);
+
+    fireEvent.click(screen.getByTestId("move-column-right-col-1"));
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "reorderColumns",
+      columnIds: ["col-2", "col-1", "col-3", "col-4", "col-5"],
+    });
+  });
 });

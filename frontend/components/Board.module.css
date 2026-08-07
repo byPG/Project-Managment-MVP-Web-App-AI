@@ -19,3 +19,59 @@
     padding: 1rem;
   }
 }
+
+.addColumnWrapper {
+  flex-shrink: 0;
+  width: 16rem;
+}
+
+.addColumnButton {
+  width: 100%;
+  border: 1px dashed var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+.addColumnButton:hover,
+.addColumnButton:focus-visible {
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+}
+
+.addColumnForm {
+  display: flex;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 0.75rem;
+}
+
+.addColumnInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--primary-blue);
+  border-radius: 0.5rem;
+  background: var(--bg-main);
+  padding: 0.5rem 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.addColumnSubmit {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--primary-blue);
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}

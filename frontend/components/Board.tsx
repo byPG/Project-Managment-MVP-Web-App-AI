@@ -18,7 +18,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Column } from "@/components/Column";
 import { Card } from "@/components/Card";
-import { resolveDragMove } from "@/lib/boardReducer";
+import { resolveColumnMove, resolveDragMove } from "@/lib/boardReducer";
 import styles from "./Board.module.css";
 import type { BoardAction, BoardState, Card as CardType } from "@/lib/types";
 
@@ -39,6 +39,8 @@ function useIsMounted() {
 export function Board({ state, dispatch }: BoardProps) {
   const isMounted = useIsMounted();
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [newColumnTitle, setNewColumnTitle] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -90,10 +92,22 @@ export function Board({ state, dispatch }: BoardProps) {
     dispatch({ type: "moveCard", payload });
   }
 
+  function handleAddColumnSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = newColumnTitle.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    dispatch({ type: "addColumn", title: trimmed });
+    setNewColumnTitle("");
+    setIsAddingColumn(false);
+  }
+
   const boardContent = (
     <div className={styles.boardShell}>
       <div className={styles.boardInner} data-testid="kanban-board">
-        {state.columns.map((column) => (
+        {state.columns.map((column, index) => (
           <Column
             key={column.id}
             column={column}
@@ -101,8 +115,56 @@ export function Board({ state, dispatch }: BoardProps) {
               .map((cardId) => state.cards[cardId])
               .filter(Boolean)}
             dispatch={dispatch}
+            canMoveLeft={index > 0}
+            canMoveRight={index < state.columns.length - 1}
+            onMoveLeft={() =>
+              dispatch({
+                type: "reorderColumns",
+                columnIds: resolveColumnMove(state.columns, column.id, "left"),
+              })
+            }
+            onMoveRight={() =>
+              dispatch({
+                type: "reorderColumns",
+                columnIds: resolveColumnMove(state.columns, column.id, "right"),
+              })
+            }
           />
         ))}
+
+        <div className={styles.addColumnWrapper}>
+          {isAddingColumn ? (
+            <form onSubmit={handleAddColumnSubmit} className={styles.addColumnForm}>
+              <input
+                autoFocus
+                value={newColumnTitle}
+                onChange={(event) => setNewColumnTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setNewColumnTitle("");
+                    setIsAddingColumn(false);
+                  }
+                }}
+                placeholder="Column name"
+                aria-label="New column name"
+                data-testid="add-column-input"
+                className={styles.addColumnInput}
+              />
+              <button type="submit" data-testid="add-column-submit" className={styles.addColumnSubmit}>
+                Add
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAddingColumn(true)}
+              data-testid="add-column-button"
+              className={styles.addColumnButton}
+            >
+              + Add column
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

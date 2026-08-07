@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { boardReducer, resolveDragMove } from "./boardReducer";
+import { boardReducer, resolveColumnMove, resolveDragMove } from "./boardReducer";
 import type { BoardState } from "./types";
 
 const initialTestState: BoardState = {
@@ -76,6 +76,88 @@ describe("boardReducer", () => {
 
     expect(nextState.columns[0].cardIds).not.toContain("card-1");
     expect(nextState.columns[1].cardIds[0]).toBe("card-1");
+  });
+
+  it("should edit a card's title and details", () => {
+    const nextState = boardReducer(initialTestState, {
+      type: "editCard",
+      payload: { cardId: "card-1", title: "  Updated  ", details: "  New details  " },
+    });
+
+    expect(nextState.cards["card-1"]).toEqual({
+      id: "card-1",
+      title: "Updated",
+      details: "New details",
+    });
+  });
+
+  it("should not edit a card with an empty title", () => {
+    const nextState = boardReducer(initialTestState, {
+      type: "editCard",
+      payload: { cardId: "card-1", title: "   ", details: "New details" },
+    });
+
+    expect(nextState).toBe(initialTestState);
+  });
+
+  it("should add a new column", () => {
+    const nextState = boardReducer(initialTestState, {
+      type: "addColumn",
+      title: "Blocked",
+    });
+
+    expect(nextState.columns).toHaveLength(6);
+    expect(nextState.columns[5]).toMatchObject({ title: "Blocked", cardIds: [] });
+  });
+
+  it("should delete a column and its cards", () => {
+    const nextState = boardReducer(initialTestState, {
+      type: "deleteColumn",
+      columnId: "col-1",
+    });
+
+    expect(nextState.columns.find((column) => column.id === "col-1")).toBeUndefined();
+    expect(nextState.cards["card-1"]).toBeUndefined();
+    expect(nextState.cards["card-2"]).toBeDefined();
+  });
+
+  it("should reorder columns to match the submitted order", () => {
+    const nextState = boardReducer(initialTestState, {
+      type: "reorderColumns",
+      columnIds: ["col-2", "col-1", "col-3", "col-4", "col-5"],
+    });
+
+    expect(nextState.columns.map((column) => column.id)).toEqual([
+      "col-2",
+      "col-1",
+      "col-3",
+      "col-4",
+      "col-5",
+    ]);
+  });
+});
+
+describe("resolveColumnMove", () => {
+  const columns: BoardState["columns"] = [
+    { id: "col-1", title: "Backlog", cardIds: [] },
+    { id: "col-2", title: "To Do", cardIds: [] },
+    { id: "col-3", title: "Done", cardIds: [] },
+  ];
+
+  it("swaps a column left with its neighbor", () => {
+    expect(resolveColumnMove(columns, "col-2", "left")).toEqual(["col-2", "col-1", "col-3"]);
+  });
+
+  it("swaps a column right with its neighbor", () => {
+    expect(resolveColumnMove(columns, "col-2", "right")).toEqual(["col-1", "col-3", "col-2"]);
+  });
+
+  it("is a no-op moving the first column left", () => {
+    expect(resolveColumnMove(columns, "col-1", "left")).toEqual(["col-1", "col-2", "col-3"]);
+  });
+
+  it("is a no-op moving the last column right", () => {
+    expect(resolveColumnMove(columns, "col-3", "right")).toEqual(["col-1", "col-2", "col-3"]);
   });
 });
 

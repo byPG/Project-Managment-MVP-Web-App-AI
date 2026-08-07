@@ -7,7 +7,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Card } from "@/components/Card";
-import { AddCardModal } from "@/components/AddCardModal";
+import { CardModal } from "@/components/CardModal";
 import styles from "./Column.module.css";
 import type { BoardAction, Column as ColumnType, Card as CardType } from "@/lib/types";
 
@@ -15,9 +15,21 @@ type ColumnProps = {
   column: ColumnType;
   cards: CardType[];
   dispatch: React.Dispatch<BoardAction>;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
 };
 
-export function Column({ column, cards, dispatch }: ColumnProps) {
+export function Column({
+  column,
+  cards,
+  dispatch,
+  canMoveLeft,
+  canMoveRight,
+  onMoveLeft,
+  onMoveRight,
+}: ColumnProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -48,6 +60,10 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
       setTitleInput(column.title);
       setIsEditingTitle(false);
     }
+  }
+
+  function handleDeleteColumn() {
+    dispatch({ type: "deleteColumn", columnId: column.id });
   }
 
   return (
@@ -101,9 +117,52 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
             )}
           </div>
 
-          <span data-testid={`column-count-${column.id}`} className={styles.countBadge}>
-            {cards.length}
-          </span>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              onClick={onMoveLeft}
+              disabled={!canMoveLeft}
+              aria-label={`Move ${column.title} column left`}
+              data-testid={`move-column-left-${column.id}`}
+              className={styles.moveButton}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={onMoveRight}
+              disabled={!canMoveRight}
+              aria-label={`Move ${column.title} column right`}
+              data-testid={`move-column-right-${column.id}`}
+              className={styles.moveButton}
+            >
+              ›
+            </button>
+            <span data-testid={`column-count-${column.id}`} className={styles.countBadge}>
+              {cards.length}
+            </span>
+            <button
+              type="button"
+              onClick={handleDeleteColumn}
+              aria-label={`Delete ${column.title} column`}
+              data-testid={`delete-column-${column.id}`}
+              className={styles.deleteColumnButton}
+            >
+              <svg
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Droppable Card List */}
@@ -146,7 +205,8 @@ export function Column({ column, cards, dispatch }: ColumnProps) {
         </button>
       </div>
 
-      <AddCardModal
+      <CardModal
+        mode="add"
         columnId={column.id}
         columnTitle={column.title}
         isOpen={isAddModalOpen}

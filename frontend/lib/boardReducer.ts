@@ -39,6 +39,27 @@ export function resolveDragMove(
   };
 }
 
+// Resolves a "move this column left/right" click into the full ordered
+// column-id list reorderColumns expects. Returns the unchanged order if the
+// column can't move further in that direction (already at an edge) or isn't
+// found.
+export function resolveColumnMove(
+  columns: BoardState["columns"],
+  columnId: string,
+  direction: "left" | "right",
+): string[] {
+  const ids = columns.map((column) => column.id);
+  const index = ids.indexOf(columnId);
+  const targetIndex = direction === "left" ? index - 1 : index + 1;
+
+  if (index === -1 || targetIndex < 0 || targetIndex >= ids.length) {
+    return ids;
+  }
+
+  [ids[index], ids[targetIndex]] = [ids[targetIndex], ids[index]];
+  return ids;
+}
+
 // The backend is the source of truth: page.tsx applies every mutation by
 // calling the API and then dispatching "setBoard" with the refreshed data.
 // So renameColumn/addCard/deleteCard/moveCard below are never reached from
@@ -84,8 +105,67 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       };
     }
 
+    case "editCard": {
+      const { cardId, title, details } = action.payload;
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle || !state.cards[cardId]) {
+        return state;
+      }
+
+      return {
+        ...state,
+        cards: {
+          ...state.cards,
+          [cardId]: { id: cardId, title: trimmedTitle, details: details.trim() },
+        },
+      };
+    }
+
     case "setBoard": {
       return action.board;
+    }
+
+    case "addColumn": {
+      const title = action.title.trim();
+      if (!title) {
+        return state;
+      }
+
+      const id = createId("column");
+      return {
+        ...state,
+        columns: [...state.columns, { id, title, cardIds: [] }],
+      };
+    }
+
+    case "deleteColumn": {
+      const column = state.columns.find((candidate) => candidate.id === action.columnId);
+      if (!column) {
+        return state;
+      }
+
+      const removedCardIds = new Set(column.cardIds);
+      const remainingCards = Object.fromEntries(
+        Object.entries(state.cards).filter(([cardId]) => !removedCardIds.has(cardId)),
+      );
+
+      return {
+        cards: remainingCards,
+        columns: state.columns.filter((candidate) => candidate.id !== action.columnId),
+      };
+    }
+
+    case "reorderColumns": {
+      const columnsById = new Map(state.columns.map((column) => [column.id, column]));
+      const reordered = action.columnIds
+        .map((id) => columnsById.get(id))
+        .filter((column): column is BoardState["columns"][number] => Boolean(column));
+
+      if (reordered.length !== state.columns.length) {
+        return state;
+      }
+
+      return { ...state, columns: reordered };
     }
 
     case "deleteCard": {

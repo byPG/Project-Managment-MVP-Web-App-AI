@@ -9,11 +9,15 @@ import { boardReducer } from "@/lib/boardReducer";
 import {
   ApiError,
   addCard,
+  createColumn,
   deleteCard as deleteCardApi,
+  deleteColumn,
   loadBoard,
   moveCard as moveCardApi,
   normalizeBoardResponse,
   renameColumn,
+  reorderColumns,
+  updateCard,
 } from "@/src/lib/api";
 import styles from "./page.module.css";
 
@@ -78,6 +82,11 @@ export default function BoardDetailPage() {
           await refreshBoard();
           return;
 
+        case "editCard":
+          await updateCard(apiBase, action.payload.cardId, action.payload.title, action.payload.details);
+          await refreshBoard();
+          return;
+
         case "deleteCard":
           await deleteCardApi(apiBase, action.cardId);
           await refreshBoard();
@@ -87,6 +96,21 @@ export default function BoardDetailPage() {
           // Board.tsx only dispatches this for cross-column drops (same-
           // column reordering isn't persisted, so it's a no-op there).
           await moveCardApi(apiBase, action.payload.cardId, action.payload.toColumnId);
+          await refreshBoard();
+          return;
+
+        case "addColumn":
+          await createColumn(apiBase, boardId, action.title);
+          await refreshBoard();
+          return;
+
+        case "deleteColumn":
+          await deleteColumn(apiBase, action.columnId);
+          await refreshBoard();
+          return;
+
+        case "reorderColumns":
+          await reorderColumns(apiBase, boardId, action.columnIds);
           await refreshBoard();
           return;
 

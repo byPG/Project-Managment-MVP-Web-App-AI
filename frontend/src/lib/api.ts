@@ -144,6 +144,14 @@ export async function addCard(apiBase: string, columnId: string, title: string, 
   });
 }
 
+export async function updateCard(apiBase: string, cardId: string, title: string, details: string) {
+  return fetchJson(`${apiBase}/api/cards/${cardId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, details }),
+  });
+}
+
 export async function deleteCard(apiBase: string, cardId: string) {
   return fetchJson(`${apiBase}/api/cards/${cardId}`, {
     method: "DELETE",
@@ -155,5 +163,27 @@ export async function moveCard(apiBase: string, cardId: string, destinationColum
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ destination_column_id: Number(destinationColumnId) }),
+  });
+}
+
+export async function createColumn(apiBase: string, boardId: string, title: string) {
+  return fetchJson(`${apiBase}/api/boards/${boardId}/columns`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+}
+
+export async function deleteColumn(apiBase: string, columnId: string) {
+  return fetchJson(`${apiBase}/api/columns/${columnId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function reorderColumns(apiBase: string, boardId: string, columnIds: string[]) {
+  return fetchJson(`${apiBase}/api/boards/${boardId}/columns/reorder`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ column_ids: columnIds.map(Number) }),
   });
 }
