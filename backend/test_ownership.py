@@ -26,6 +26,16 @@ def test_cross_user_access_returns_404_not_403(client, seeded_board):
         client.patch(f"/api/cards/{card_id}/move", json={"destination_column_id": column_id}).status_code
         == 404
     )
+    assert client.patch(f"/api/cards/{card_id}", json={"title": "x", "details": ""}).status_code == 404
+    assert client.post(f"/api/boards/{board_id}/columns", json={"title": "x"}).status_code == 404
+    assert (
+        client.patch(
+            f"/api/boards/{board_id}/columns/reorder",
+            json={"column_ids": [column_id]},
+        ).status_code
+        == 404
+    )
+    assert client.delete(f"/api/columns/{column_id}").status_code == 404
 
 
 def test_moving_card_into_another_own_board_is_rejected(client, seeded_board):
@@ -63,3 +73,13 @@ def test_no_cookie_returns_401(client, seeded_board):
         client.patch(f"/api/cards/{card_id}/move", json={"destination_column_id": column_id}).status_code
         == 401
     )
+    assert client.patch(f"/api/cards/{card_id}", json={"title": "x", "details": ""}).status_code == 401
+    assert client.post(f"/api/boards/{board_id}/columns", json={"title": "x"}).status_code == 401
+    assert (
+        client.patch(
+            f"/api/boards/{board_id}/columns/reorder",
+            json={"column_ids": [column_id]},
+        ).status_code
+        == 401
+    )
+    assert client.delete(f"/api/columns/{column_id}").status_code == 401

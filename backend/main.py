@@ -175,7 +175,17 @@ class BoardRenameRequest(BaseModel):
 class ColumnRenameRequest(BaseModel):
     title: str = Field(max_length=100)
 
+class AddColumnRequest(BaseModel):
+    title: str = Field(max_length=100)
+
+class ReorderColumnsRequest(BaseModel):
+    column_ids: list[int]
+
 class AddCardRequest(BaseModel):
+    title: str = Field(max_length=200)
+    details: str = Field(default="", max_length=2000)
+
+class UpdateCardRequest(BaseModel):
     title: str = Field(max_length=200)
     details: str = Field(default="", max_length=2000)
 
@@ -213,6 +223,16 @@ def reorder_cards(column_id: int, session: Session) -> None:
     for index, card in enumerate(cards, start=1):
         card.position = index
         session.add(card)
+    session.commit()
+
+
+def reorder_columns(board_id: int, session: Session) -> None:
+    columns = session.exec(
+        select(Column).where(Column.board_id == board_id).order_by(Column.position),
+    ).all()
+    for index, column in enumerate(columns, start=1):
+        column.position = index
+        session.add(column)
     session.commit()
 
 
@@ -321,6 +341,80 @@ def delete_board(
     return {"status": "ok"}
 
 
+@app.post("/api/boards/{board_id}/columns", response_model=ColumnRead, status_code=201)
+def add_column(
+    board_id: int,
+    payload: AddColumnRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Column title must not be empty")
+
+    board = get_owned_board(board_id, user, session)
+
+    columns = session.exec(
+        select(Column).where(Column.board_id == board.id).order_by(Column.position),
+    ).all()
+    next_position = columns[-1].position + 1 if columns else 1
+
+    column = Column(board_id=board.id, name=title, position=next_position)
+    session.add(column)
+    session.commit()
+    session.refresh(column)
+
+    return build_column_read(column, session)
+
+
+@app.patch("/api/boards/{board_id}/columns/reorder", response_model=list[ColumnRead])
+def reorder_columns_route(
+    board_id: int,
+    payload: ReorderColumnsRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    board = get_owned_board(board_id, user, session)
+
+    columns = session.exec(
+        select(Column).where(Column.board_id == board.id).order_by(Column.position),
+    ).all()
+    existing_ids = {column.id for column in columns}
+    submitted_ids = payload.column_ids
+
+    if set(submitted_ids) != existing_ids or len(submitted_ids) != len(existing_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="Column order must include every column exactly once",
+        )
+
+    columns_by_id = {column.id: column for column in columns}
+    for index, column_id in enumerate(submitted_ids, start=1):
+        columns_by_id[column_id].position = index
+        session.add(columns_by_id[column_id])
+    session.commit()
+
+    result_columns = session.exec(
+        select(Column).where(Column.board_id == board.id).order_by(Column.position),
+    ).all()
+    return [build_column_read(column, session) for column in result_columns]
+
+
+@app.delete("/api/columns/{column_id}")
+def delete_column(
+    column_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    column = get_owned_column(column_id, user, session)
+    board_id = column.board_id
+
+    delete_column_cascade(column_id, session)
+    reorder_columns(board_id, session)
+
+    return {"status": "ok"}
+
+
 @app.patch("/api/columns/{column_id}", response_model=ColumnRead)
 def rename_column(
     column_id: int,
@@ -366,6 +460,27 @@ def add_card(
         details=payload.details.strip(),
         position=next_position,
     )
+    session.add(card)
+    session.commit()
+    session.refresh(card)
+
+    return CardRead.model_validate(card)
+
+
+@app.patch("/api/cards/{card_id}", response_model=CardRead)
+def update_card(
+    card_id: int,
+    payload: UpdateCardRequest = Body(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Card title is required")
+
+    card = get_owned_card(card_id, user, session)
+    card.title = title
+    card.details = payload.details.strip()
     session.add(card)
     session.commit()
     session.refresh(card)

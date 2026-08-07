@@ -1,3 +1,43 @@
+def test_update_card_edits_title_and_details(client, seeded_board):
+    source_response = client.get("/api/board")
+    card_id = source_response.json()["columns"][0]["cards"][0]["id"]
+
+    response = client.patch(
+        f"/api/cards/{card_id}",
+        json={"title": "Updated title", "details": "Updated details"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["title"] == "Updated title"
+    assert body["details"] == "Updated details"
+
+    board_response = client.get("/api/board")
+    updated_card = board_response.json()["columns"][0]["cards"][0]
+    assert updated_card["title"] == "Updated title"
+    assert updated_card["details"] == "Updated details"
+
+
+def test_update_card_requires_title(client, seeded_board):
+    source_response = client.get("/api/board")
+    card_id = source_response.json()["columns"][0]["cards"][0]["id"]
+
+    response = client.patch(
+        f"/api/cards/{card_id}",
+        json={"title": "   ", "details": "x"},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Card title is required"
+
+
+def test_update_nonexistent_card_returns_404(client, seeded_board):
+    response = client.patch(
+        "/api/cards/99999",
+        json={"title": "Does not matter", "details": ""},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Card not found"
+
+
 def test_delete_card_removes_card(client, seeded_board):
     column_id = seeded_board["columns"][0].id
 
